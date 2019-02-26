@@ -260,5 +260,5 @@ paket-files/
 __pycache__/
 *.pyc
 
-# linguistic for code language determination
-static/* linguist-vendored
+# Deedle
+Deedle/
