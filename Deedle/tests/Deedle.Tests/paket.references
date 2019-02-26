@@ -1,0 +1,7 @@
+FSharp.Core
+FsCheck
+MathNet.Numerics
+NUnit
+Microsoft.NET.Test.Sdk
+NUnit3TestAdapter
+FsUnit

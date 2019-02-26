@@ -1,0 +1,87 @@
+﻿<Window x:Class="DancingTrainer.SalsaWindow"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:DancingTrainer"
+             mc:Ignorable="d"
+             Title="Salsa Window" d:DesignHeight="400" d:DesignWidth="800">
+    <Grid x:Name="SalsaWindow1" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" Background="White">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="3*" />
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="3*" />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="0.5*"/>
+            <RowDefinition Height="1.5*" />
+            <RowDefinition Height="8*" />
+        </Grid.RowDefinitions>
+        <Label x:Name="label_BeatCounterDescription" Content="Beat: "  Grid.Column="0" Grid.Row="1" HorizontalAlignment="Right" VerticalAlignment="Center" FontSize="30"/>
+        <Menu x:Name="Menu" Grid.Row="0" HorizontalContentAlignment="Left" HorizontalAlignment="Stretch" Height="Auto" VerticalAlignment="Top" Width="Auto" Margin="0,0,-0.4,0" Grid.ColumnSpan="3">
+            <MenuItem Header="File">
+                <MenuItem x:Name="mi_Open" Header="Open" IsEnabled="False"/>
+                <MenuItem x:Name="mi_Save" Header="Save" Click="MenuItem_OnSave_Click"/>
+            </MenuItem>
+            <MenuItem Header="View">
+                <MenuItem x:Name="mi_Normal" Header="Normal" IsEnabled="False" Click="MenuItem_OnNormal_Click"/>
+                <MenuItem x:Name="mi_Tutorial" Header="Tutorial" Click="MenuItem_OnTutorial_Click"/>
+                <MenuItem x:Name="mi_Experimental" Header="Experimental" Click="MenuItem_OnExperimental_Click"/>
+            </MenuItem>
+            <MenuItem Header="Settings">
+                <MenuItem Header="Practice Steps">
+                    <MenuItem Header="Straight" x:Name="mi_Straight" Click="MenuItem_Straight_Click" IsEnabled="False" />
+                    <MenuItem Header="Side" x:Name="mi_Side" Click="MenuItem_Side_Click"/>
+                </MenuItem>
+                <Separator/>
+                <MenuItem x:Name="mi_AudioBeatSupport" Header="Audio Beat Support" IsCheckable="True" IsChecked="False" Click="MenuItem_AudioBeatSupport_Click"/>
+                <MenuItem x:Name="mi_BeatCountSupport" Header="Beat Counter" IsCheckable="True" IsChecked="True" Click="MenuItem_BeatCountSupport_Click"/>
+                <MenuItem x:Name="mi_ShowSalsaSteps" Header="Show Salsa Steps" IsCheckable="True" IsChecked="True" Click="MenuItem_ShowSalsaSteps_Click"/>
+            </MenuItem>
+        </Menu>
+
+        <Label x:Name="label_BeatCounter" Grid.Column="1" Grid.Row="1" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Content="Test" FontSize="30"/>
+
+        <Grid Name="SalsaStepsLeft" Grid.Column="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Grid.Row="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <Image x:Name="img_Left_Forward" Grid.Row="0" Margin="5,5,10,5" HorizontalAlignment="Right"/>
+            <Image x:Name="img_Left_Neutral" Grid.Row="1" Margin="5,5,10,5" Source="images\Left.png" HorizontalAlignment="Right"/>
+            <Image x:Name="img_Left_Backward" Grid.Row="2" Margin="5,5,10,5" HorizontalAlignment="Right"/>
+            <ProgressBar x:Name="progbar_ForthAndBackProgress_Left" Grid.Row="0" HorizontalAlignment="Left" Height="10" Margin="0,26,0,0" VerticalAlignment="Top" Width="194" Maximum="1" Visibility="Hidden"/>
+            <ProgressBar x:Name="progbar_FootTap_Left" HorizontalAlignment="Left" Height="10" Margin="0,98,0,0" VerticalAlignment="Top" Width="194" Maximum="1" Grid.RowSpan="2" Visibility="Hidden"/>
+            <ProgressBar x:Name="progbar_FootTap_Right"  HorizontalAlignment="Left" Height="10" Margin="0,63,0,0" VerticalAlignment="Top" Width="194" Maximum="1" Value="-1" Grid.Row="0" Visibility="Hidden"/>
+            <Label x:Name="label_FAndBProgress_Left" Grid.Row="0" Content="FAndBProgress_Left" HorizontalAlignment="Left" VerticalAlignment="Top" FontSize="12" Visibility="Hidden"/>
+            <Label x:Name="label_FootTap_Left" Grid.Row="0" Content="FootTap_Left" HorizontalAlignment="Left" Margin="0,73,0,0" VerticalAlignment="Top" FontSize="12" Visibility="Hidden"/>
+            <Label x:Name="label_FootTap_Right" Grid.Row="0" Content="FootTap_Right" HorizontalAlignment="Left" Margin="0,36,0,0" VerticalAlignment="Top" FontSize="12" Visibility="Hidden"/>
+
+        </Grid>
+
+        <Grid HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Grid.Column="1" Grid.Row="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <Border x:Name="brdr_Feedback" Visibility="Visible" BorderThickness="2" BorderBrush="DarkBlue" Grid.Row="1" />
+            <Image x:Name="img_Feedback_Icon" Grid.Row="1" Margin="10,10,10,10" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            <Label x:Name="label_Feedback_Icon" Foreground="DarkBlue" Content="Instruction" Grid.Row="2" HorizontalContentAlignment="Center" VerticalContentAlignment="Top"/>
+        </Grid>
+
+        <Grid x:Name="SalsaStepsRight" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Grid.Column="2" Grid.Row="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <Image x:Name="img_Right_Forward" Grid.Row="0" Margin="10,5,5,5" HorizontalAlignment="Left"/>
+            <Image x:Name="img_Right_Neutral" Grid.Row="1" Margin="10,5,5,5" HorizontalAlignment="Left" Source="images\Right.png"/>
+            <Image x:Name="img_Right_Backward" Grid.Row="2" Margin="10,5,5,5" HorizontalAlignment="Left"/>
+        </Grid>
+
+
+    </Grid>
+</Window>
