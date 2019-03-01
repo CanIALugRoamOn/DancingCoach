@@ -1,7 +1,11 @@
-﻿using Microsoft.Kinect;
+﻿using Accord.Video.FFMPEG;
+using Microsoft.Kinect;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Drawing;
+using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -32,7 +36,7 @@ namespace DancingTrainer
         /// <summary>
         /// Bitmap to display
         /// </summary>
-        private WriteableBitmap colorBitmap = null;
+        public WriteableBitmap ColorBitmap { get; private set; } = null;
 
         public BodyFrameHandler bodyFrameHandler;
 
@@ -56,7 +60,8 @@ namespace DancingTrainer
             FrameDescription colorFrameDescription = this.kinectSensor.ColorFrameSource.CreateFrameDescription(ColorImageFormat.Bgra);
 
             // create the bitmap to display
-            this.colorBitmap = new WriteableBitmap(colorFrameDescription.Width, colorFrameDescription.Height, 96.0, 96.0, PixelFormats.Bgr32, null);
+            this.ColorBitmap = new WriteableBitmap(colorFrameDescription.Width, colorFrameDescription.Height, 96.0, 96.0, PixelFormats.Bgr32, null);
+            
 
 
             this.kinectSensor.Open();
@@ -65,7 +70,6 @@ namespace DancingTrainer
             bodyFrameHandler = new BodyFrameHandler(this.kinectSensor, this);
             faceFrameHandler = new FaceFrameHandler(this.kinectSensor);
             volumeHandler = new VolumeHandler(this.kinectSensor);
-
 
             try
             {
@@ -883,7 +887,7 @@ namespace DancingTrainer
         {
             get
             {
-                return this.colorBitmap;
+                return this.ColorBitmap;
             }
         }
 
@@ -906,21 +910,21 @@ namespace DancingTrainer
 
                     using (KinectBuffer colorBuffer = colorFrame.LockRawImageBuffer())
                     {
-                        this.colorBitmap.Lock();
+                        this.ColorBitmap.Lock();
 
                         // verify data and write the new color frame data to the display bitmap
-                        if ((colorFrameDescription.Width == this.colorBitmap.PixelWidth) && (colorFrameDescription.Height == this.colorBitmap.PixelHeight))
+                        if ((colorFrameDescription.Width == this.ColorBitmap.PixelWidth) && (colorFrameDescription.Height == this.ColorBitmap.PixelHeight))
                         {
                             colorFrame.CopyConvertedFrameDataToIntPtr(
-                                this.colorBitmap.BackBuffer,
+                                this.ColorBitmap.BackBuffer,
                                 (uint)(colorFrameDescription.Width * colorFrameDescription.Height * 4),
                                 ColorImageFormat.Bgra);
 
-                            this.colorBitmap.AddDirtyRect(new Int32Rect(0, 0, this.colorBitmap.PixelWidth, this.colorBitmap.PixelHeight));
+                            this.ColorBitmap.AddDirtyRect(new Int32Rect(0, 0, this.ColorBitmap.PixelWidth, this.ColorBitmap.PixelHeight));
                         }
 
-                        this.colorBitmap.Unlock();
-
+                        this.ColorBitmap.Unlock();
+                        
                     }
                 }
 
@@ -928,7 +932,7 @@ namespace DancingTrainer
             }
         }
 
-
+        
 
         private void MainWindow_Closing1(object sender, CancelEventArgs e)
         {

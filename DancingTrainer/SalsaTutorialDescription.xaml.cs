@@ -24,7 +24,12 @@ namespace DancingTrainer
             switch (tutorialIndex)
             {
                 case 0:
-                    textbox_Description.Text = "Salsa Movements \n" +
+                    textbox_Description.Text = "The left foot is highlighted with green and the right foot with red. " +
+                        "Lighter color indicates the foot that has to be moved. " +
+                        "Darker color indicates a grounded foot. ";
+                    break;
+                case 1:
+                    textbox_Description.Text = "Salsa Forward Movements \n" +
                         "On 8 you start and end in a grounded position with shoulderwide placed feet. " +
                         "On 1 take a step forward with your left foot and hold the position. " +
                         "On 2 tap with your right foot. " +
@@ -32,13 +37,21 @@ namespace DancingTrainer
                         "On 4 pause. " +
                         "On 5 take a step back with your right foot and hold the position. " +
                         "On 6 tap with your left foot. " +
-                        "On 7 return to your starting position.\n" +
-                "The left foot is highlighted with green and the right foot with red. " +
-                "Lighter color indicates the foot that has to be moved. " +
-                "Darker color indicates a grounded foot. ";
+                        "On 7 return to your starting position.\n";
                     img_Description.Source = new BitmapImage(new Uri(@"images\salsaSteppingOrderComplete.png", UriKind.RelativeOrAbsolute));
                     break;
-                case 1:
+                case 2:
+                    textbox_Description.Text = "Salsa Sideways Movement \n" +
+                        "On 8 you start and end in a grounded position with shoulderwide placed feet. " +
+                        "On 1 take a step to your left side with your left foot and hold the position. " +
+                        "On 2 tap with your right foot. " +
+                        "On 3 return to your starting position. " +
+                        "On 4 pause. " +
+                        "On 5 take a step to your right side with your right foot and hold the position. " +
+                        "On 6 tap with your left foot. " +
+                        "On 7 return to your starting position.";
+                    break;
+                case 3:
                     textbox_Description.Text = "During a normal dancing session feedback is shown in the blue box between the feet. " +
                         "For a tutorial it can be ignored. " +
                         "Every feedback is supported by a little instruction. "+
@@ -46,7 +59,7 @@ namespace DancingTrainer
                         "That is why a beat counter supports you in normal dancing session.";
                     img_Description.Source = new BitmapImage(new Uri(@"images\beatCounterFeedbackSpot.png", UriKind.RelativeOrAbsolute));
                     break;
-                case 2:
+                case 4:
                     textbox_Description.Text = "Here are all the feedbacks and their instructions. From Left to Right:\n" +
                         "Activates when you are not dancing to the beat.\n" +
                         "Activates when you do not look straight. Having a straight spine prevents back problems.\n" +

@@ -5,6 +5,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 using System.Timers;
 using System.Windows;
@@ -12,6 +13,10 @@ using System.Windows.Controls;
 using System.Windows.Forms;
 using System.Windows.Media.Imaging;
 using System.Windows.Media.Media3D;
+using System.IO;
+using System.Threading.Tasks;
+using System.Runtime.InteropServices;
+using Accord.Video.FFMPEG;
 
 namespace DancingTrainer
 {
@@ -50,6 +55,10 @@ namespace DancingTrainer
         Dictionary<JointType, double> motionAngles = new Dictionary<JointType, double>();
         Vector3D forwardMovement = new Vector3D(0.0,0.0,-1.0);
         private string mode = "normal";
+        private List<WriteableBitmap> video = new List<WriteableBitmap>();
+        //private VideoFileWriter vfw = new VideoFileWriter();
+        private Task record;
+        
 
         public SalsaWindow(MainWindow mw, KinectWindow kw, BeatManager bm)
         {
@@ -57,6 +66,7 @@ namespace DancingTrainer
             label_BeatCounter.Content = "-";
             mode = "normal";
             kinWin = kw;
+            kinWin.colorFrameReader.FrameArrived += ColorFrameReader_FrameArrived;
             mainWin = mw;
             beatMan = bm;
             this.Title = "Salsa: " + mainWin.combobox_MusicList.SelectedItem.ToString();
@@ -89,6 +99,76 @@ namespace DancingTrainer
             this.Closing += SalsaWindow_Closing;
         }
 
+        private void ColorFrameReader_FrameArrived(object sender, ColorFrameArrivedEventArgs e)
+        {
+            using (ColorFrame cframe = e.FrameReference.AcquireFrame())
+            {
+                if (cframe != null)
+                {
+                    if (kinWin.isRecording)
+                    {
+                        // add the frame to the video list
+                        //record.ContinueWith(x => video.Add(kinWin.ColorBitmap));
+                        record = Task.Factory.StartNew(() => video.Add(kinWin.ColorBitmap));
+                        //if (vfw.IsOpen)
+                        //{
+                        //    vfw.WriteVideoFrame(BitmapSourceToBitmap(kinWin.ColorBitmap));
+                        //}
+                        //Bitmap btm = BitmapSourceToBitmap(kinWin.ColorBitmap);
+
+                    }
+                }
+            }
+        }
+
+        private Bitmap BitmapSourceToBitmap(BitmapSource srs)
+        {
+            int width = srs.PixelWidth;
+            int height = srs.PixelHeight;
+            int stride = width * ((srs.Format.BitsPerPixel + 7) / 8);
+            IntPtr ptr = IntPtr.Zero;
+            try
+            {
+                ptr = Marshal.AllocHGlobal(height * stride);
+                srs.CopyPixels(new Int32Rect(0, 0, width, height), ptr, height * stride, stride);
+                using (var btm = new Bitmap(width, height, stride, System.Drawing.Imaging.PixelFormat.Format32bppArgb, ptr))
+                {
+                    // Clone the bitmap so that we can dispose it and
+                    // release the unmanaged memory at ptr
+                    return new Bitmap(btm);
+                }
+            }
+            finally
+            {
+                if (ptr != IntPtr.Zero)
+                    Marshal.FreeHGlobal(ptr);
+            }
+        }
+
+        //private void WriteFrameIntoVideo()
+        //{
+        //    vfw.WriteVideoFrame(BitmapSourceToBitmap(kinWin.ColorBitmap));
+        //}
+
+        private void WriteVideo(string filename)
+        {
+            int width = (int)video[0].Width;
+            int height = (int)video[0].Height;
+            // create instance of video writer
+            VideoFileWriter writer = new VideoFileWriter();
+            // create new video file
+            writer.Open(filename, width, height, 30, VideoCodec.MPEG4);
+
+            for (int i = 0; i < video.Count; i++)
+            {
+                Bitmap btm = new Bitmap(BitmapSourceToBitmap(kinWin.ColorBitmap));
+                writer.WriteVideoFrame(btm);
+            }
+            writer.Close();
+        }
+
+        
+
         //private void Timer_Elapsed(object sender, ElapsedEventArgs e)
         //{
         //    ShowSteps(BM.beatCounter % 8);
@@ -103,6 +183,7 @@ namespace DancingTrainer
                 StartBodyCapturing();
                 StartFaceCapturing();
                 feedbackTimer.Start();
+                //vfw.Open("test.avi", (int)kinWin.ColorBitmap.Width, (int)kinWin.ColorBitmap.Height, 30, VideoCodec.MPEG4);
             }
             else
             {
@@ -143,6 +224,7 @@ namespace DancingTrainer
                 System.IO.File.WriteAllLines("motiondata" + fileCounter + ".csv", stanceData);
                 fileCounter++;
                 stanceData.Clear();
+                //vfw.Close();
             }
             else
             {
@@ -196,17 +278,31 @@ namespace DancingTrainer
                 var feedbackObject = new JObject();
                 foreach (var item in temp)
                 {
-                    feedbackObject = new JObject();
-                    feedbackObject.Add("Name", item.ToTuple().Item1);
-                    feedbackObject.Add("Feedback Start", item.ToTuple().Item2);
-                    feedbackObject.Add("Display Start", item.ToTuple().Item3);
-                    feedbackObject.Add("Feedback End", item.ToTuple().Item4);
+                    feedbackObject = new JObject
+                    {
+                        { "Name", item.ToTuple().Item1 },
+                        { "Feedback Start", item.ToTuple().Item2 },
+                        { "Display Start", item.ToTuple().Item3 },
+                        { "Feedback End", item.ToTuple().Item4 }
+                    };
 
                     timeline.Feedback.Add(feedbackObject);
                 }
 
                 string json = JsonConvert.SerializeObject(timeline);
-                System.IO.File.WriteAllText(sfdg.FileName, json);
+                File.WriteAllText(sfdg.FileName, json);
+                string fname;
+                if (sfdg.FileName.Contains(".json"))
+                {
+                    fname = sfdg.FileName.Replace(".json", ".avi");
+                }
+                else
+                {
+                    fname = sfdg.FileName + ".avi";
+                }
+                DialogResult message = System.Windows.Forms.MessageBox.Show("Saving Video: Window closes on finish.");             
+                WriteVideo(fname);
+                // close on finish?
             }           
         }
 
