@@ -29,7 +29,7 @@ namespace DancingTrainer
         public Dictionary<String, float> gestureValues;
         public bool gestureToTheBeat;
         SalsaWindow salWin;
-        BeatManager beatMan;
+        SalsaBeatManager beatMan;
         private bool condition = false;
         public bool IsGestureToTheBeat { get; private set; } = false;
         public ulong TrackingId
@@ -67,7 +67,7 @@ namespace DancingTrainer
                 }
             }
         }
-        public GestureDetectorSalsa(SalsaWindow sw,  KinectSensor kinectSensor, BeatManager bm)
+        public GestureDetectorSalsa(SalsaWindow sw,  KinectSensor kinectSensor, SalsaBeatManager bm)
         {
             salWin = sw;
             beatMan = bm;
@@ -115,7 +115,7 @@ namespace DancingTrainer
             }
             // check if the gesture happend to the beat
             int index = timePassedList.Count - 1;
-            int currentBeat = beatMan.beatCounter;
+            int currentBeat = beatMan.BeatCounter;
             gestureToTheBeat = false;
             while(timePassedList[index].Item1 <= currentBeat * beatMan.MSPB + 100 && timePassedList[index].Item1 >= currentBeat * beatMan.MSPB - 100)
             {
@@ -245,8 +245,8 @@ namespace DancingTrainer
                 }               
             }
             stopWatch.Stop();
-            timePassed = beatMan.stopWatch.Elapsed.TotalMilliseconds - beatMan.timerStopwatchOffset;
-            double beatsTimeDiff = timePassed - beatMan.beatCounter * beatMan.MSPB;
+            timePassed = beatMan.StopWatch.Elapsed.TotalMilliseconds - beatMan.timerStopwatchOffset;
+            double beatsTimeDiff = timePassed - beatMan.BeatCounter * beatMan.MSPB;
             // 250 ms delay or maybe 100 ms ???
             // problems if MSPB <= 250 but this is too fast
             // 240 BPM correspond to 250 MSPB
@@ -255,7 +255,7 @@ namespace DancingTrainer
             // look if the beat is the same
             // 3 cases: too early, perfect, too late
             // too early: currentSalsaBeatCounter = beatCounter + 1 and timeDiff >= MSPB - 250
-            if (beatMan.beatCounter % 8 + 1 == currentSalsaBeatCounter & beatsTimeDiff >= beatMan.MSPB-250 & beatsTimeDiff < beatMan.MSPB)
+            if (beatMan.BeatCounter % 8 + 1 == currentSalsaBeatCounter & beatsTimeDiff >= beatMan.MSPB-250 & beatsTimeDiff < beatMan.MSPB)
             {
                 // to the beat
                 IsGestureToTheBeat = true;
@@ -265,7 +265,7 @@ namespace DancingTrainer
                 IsGestureToTheBeat = false;
                 // perfect: currentSalsaBeatCounter = beatCounter and timeDiff = 0
                 // too late: currentSalsaBeatCounter = beatCounter and timeDiff <= 250
-                if (beatMan.beatCounter % 8 == currentSalsaBeatCounter & beatsTimeDiff >= 0 & beatsTimeDiff <= 250)
+                if (beatMan.BeatCounter % 8 == currentSalsaBeatCounter & beatsTimeDiff >= 0 & beatsTimeDiff <= 250)
                 {
                     // to the beat
                     IsGestureToTheBeat = true;

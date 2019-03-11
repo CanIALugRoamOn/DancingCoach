@@ -1,0 +1,135 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ClassDiagram MajorVersion="1" MinorVersion="1">
+  <Class Name="DancingTrainer.MainWindow" Collapsed="true">
+    <Position X="0.75" Y="1.75" Width="2.5" />
+    <Compartments>
+      <Compartment Name="Fields" Collapsed="true" />
+      <Compartment Name="Methods" Collapsed="true" />
+    </Compartments>
+    <NestedTypes>
+      <Delegate Name="DancingTrainer.MainWindow.WriteOnUI" Collapsed="true">
+        <TypeIdentifier>
+          <NewMemberFileName>MainWindow.xaml.cs</NewMemberFileName>
+        </TypeIdentifier>
+      </Delegate>
+    </NestedTypes>
+    <AssociationLine Name="salWin" Type="DancingTrainer.SalsaWindow" ManuallyRouted="true" FixedFromPoint="true" FixedToPoint="true">
+      <Path>
+        <Point X="2.438" Y="2.441" />
+        <Point X="2.438" Y="5.062" />
+        <Point X="2.75" Y="5.062" />
+      </Path>
+      <MemberNameLabel ManuallyPlaced="true">
+        <Position X="0.484" Y="0.759" />
+      </MemberNameLabel>
+    </AssociationLine>
+    <TypeIdentifier>
+      <HashCode>DQAgAAAAAAAAQEgBAAIGQBECAIEAAAAkqAAKACAAAEA=</HashCode>
+      <FileName>MainWindow.xaml.cs</FileName>
+    </TypeIdentifier>
+    <ShowAsAssociation>
+      <Field Name="beatMan" />
+      <Field Name="salWin" />
+    </ShowAsAssociation>
+    <Lollipop Position="0.2" />
+  </Class>
+  <Class Name="DancingTrainer.SalsaBeatManager" Collapsed="true">
+    <Position X="4.25" Y="1.75" Width="2.25" />
+    <NestedTypes>
+      <Delegate Name="DancingTrainer.SalsaBeatManager.WriteOnUi" Collapsed="true">
+        <TypeIdentifier>
+          <NewMemberFileName>SalsaBeatManager.cs</NewMemberFileName>
+        </TypeIdentifier>
+      </Delegate>
+    </NestedTypes>
+    <AssociationLine Name="SW" Type="DancingTrainer.SalsaWindow">
+      <MemberNameLabel ManuallyPlaced="true">
+        <Position X="1.342" Y="0.913" />
+      </MemberNameLabel>
+    </AssociationLine>
+    <TypeIdentifier>
+      <HashCode>SAAgAAAhAABAAAAAAEAAAAAAQUAAAABBIADAAAAOAQA=</HashCode>
+      <FileName>SalsaBeatManager.cs</FileName>
+    </TypeIdentifier>
+    <ShowAsAssociation>
+      <Field Name="SW" />
+    </ShowAsAssociation>
+    <Lollipop Position="0.2" />
+  </Class>
+  <Class Name="DancingTrainer.Feedback">
+    <Position X="7.25" Y="0.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAgAAggAAAAAEIAQAAgAAkAIAgAAAAABAAAAIAA=</HashCode>
+      <FileName>Feedback.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" />
+  </Class>
+  <Class Name="DancingTrainer.GestureDetectorSalsa" Collapsed="true">
+    <Position X="2.75" Y="6.75" Width="1.5" />
+    <NestedTypes>
+      <Delegate Name="DancingTrainer.GestureDetectorSalsa.WriteOnUi" Collapsed="true">
+        <TypeIdentifier>
+          <NewMemberFileName>GestureDetectorSalsa.cs</NewMemberFileName>
+        </TypeIdentifier>
+      </Delegate>
+    </NestedTypes>
+    <TypeIdentifier>
+      <HashCode>BAAAoIBEAAAAAABAAIAAwEgAJAAAIACAkAAgAAAAKAA=</HashCode>
+      <FileName>GestureDetectorSalsa.cs</FileName>
+    </TypeIdentifier>
+    <ShowAsAssociation>
+      <Field Name="salWin" />
+    </ShowAsAssociation>
+  </Class>
+  <Class Name="DancingTrainer.KinectWindow">
+    <Position X="10" Y="0.75" Width="2.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAEJAAAAAQEAAAAAMAIQgBAAUIAFgBACAAAAAAAAA=</HashCode>
+      <FileName>KinectWindow.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" />
+  </Class>
+  <Class Name="DancingTrainer.SalsaTutorialDescription">
+    <Position X="13.25" Y="3.25" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAIAAAABAgAAEAAAACAAAACAAAAAAAAAAAAAAEA=</HashCode>
+      <FileName>SalsaTutorialDescription.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" />
+  </Class>
+  <Class Name="DancingTrainer.KinectManager" Collapsed="true">
+    <Position X="7.25" Y="6" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAEAAAAABEEAAAEAAqAAAgAAIAMAAAAAoCBAAAAIABA=</HashCode>
+      <FileName>KinectManager.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="DancingTrainer.SalsaWindow" Collapsed="true">
+    <Position X="2.75" Y="4.75" Width="1.5" />
+    <NestedTypes>
+      <Delegate Name="DancingTrainer.SalsaWindow.SetImageSourceDelegate" Collapsed="true">
+        <TypeIdentifier>
+          <NewMemberFileName>SalsaWindow.xaml.cs</NewMemberFileName>
+        </TypeIdentifier>
+      </Delegate>
+      <Delegate Name="DancingTrainer.SalsaWindow.SetLabelContentDelegate" Collapsed="true">
+        <TypeIdentifier>
+          <NewMemberFileName>SalsaWindow.xaml.cs</NewMemberFileName>
+        </TypeIdentifier>
+      </Delegate>
+    </NestedTypes>
+    <TypeIdentifier>
+      <HashCode>REAkIIQBEgCERITQAlAEBoBEaBgAQgEEoAAAFgkgNxg=</HashCode>
+      <FileName>SalsaWindow.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" />
+  </Class>
+  <Interface Name="DancingTrainer.IBeatManager" Collapsed="true">
+    <Position X="4.75" Y="0.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAgAAABAAAAAAAAAAAAAAAAAAAAAABBIAAAAAAIAAA=</HashCode>
+      <FileName>IBeatManager.cs</FileName>
+    </TypeIdentifier>
+  </Interface>
+  <Font Name="Segoe UI" Size="9" />
+</ClassDiagram>

@@ -10,7 +10,7 @@ namespace DancingTrainer
     public partial class SalsaTutorialDescription : Window
     {
         int tutorialIndex = 0;
-        int maxIdx = 2;
+        int maxIdx = 4;
         int minIdx = 0;
 
         public SalsaTutorialDescription()
@@ -25,8 +25,9 @@ namespace DancingTrainer
             {
                 case 0:
                     textbox_Description.Text = "The left foot is highlighted with green and the right foot with red. " +
-                        "Lighter color indicates the foot that has to be moved. " +
-                        "Darker color indicates a grounded foot. ";
+                        "Darker color indicates the foot that has to be moved. " +
+                        "Lighter color indicates a grounded foot. ";
+                    img_Description.Source = new BitmapImage(new Uri(@"images\salsaSteppingOrderComplete.png", UriKind.RelativeOrAbsolute));
                     break;
                 case 1:
                     textbox_Description.Text = "Salsa Forward Movements \n" +
@@ -50,6 +51,7 @@ namespace DancingTrainer
                         "On 5 take a step to your right side with your right foot and hold the position. " +
                         "On 6 tap with your left foot. " +
                         "On 7 return to your starting position.";
+                    img_Description.Source = new BitmapImage(new Uri(@"images\salsaSteppingSideOrderComplete.png", UriKind.RelativeOrAbsolute));
                     break;
                 case 3:
                     textbox_Description.Text = "During a normal dancing session feedback is shown in the blue box between the feet. " +

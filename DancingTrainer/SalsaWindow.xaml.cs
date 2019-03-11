@@ -23,15 +23,16 @@ namespace DancingTrainer
     /// <summary>
     /// Interaction logic for SalsaWindow.xaml
     /// </summary>
-    public partial class SalsaWindow : Window
+    public partial class SalsaWindow : Window, IDancingTrainerComponent
     {
 
-        KinectWindow kinWin;
+        public KinectWindow kinWin;
         MainWindow mainWin;
-        BeatManager beatMan;
+        SalsaBeatManager beatMan;
 
         // schedule the freedback during runtime
-        private Feedback[] feedbackArray;
+        public Feedback[] FeedbackArray { get; set; }
+
         private System.Timers.Timer feedbackTimer;
         private int currentFeedbackCounter = 0;
 
@@ -41,8 +42,8 @@ namespace DancingTrainer
         Feedback focus;
         Feedback movebody;
 
-        public DateTime SessionStart { get; private set; }
-        public Body[] bodies { get; private set; }
+        public DateTime SessionStart { get; set; }
+        public Body[] Bodies { get; private set; }
 
         private List<GestureDetectorSalsa> gestureDetectorSalsa;
         public bool isRunning = false;
@@ -55,12 +56,13 @@ namespace DancingTrainer
         Dictionary<JointType, double> motionAngles = new Dictionary<JointType, double>();
         Vector3D forwardMovement = new Vector3D(0.0,0.0,-1.0);
         private string mode = "normal";
-        private List<WriteableBitmap> video = new List<WriteableBitmap>();
+        public List<WriteableBitmap> Video { get; set; } = new List<WriteableBitmap>();
         //private VideoFileWriter vfw = new VideoFileWriter();
-        private Task record;
-        
+        public Task Record { get; set; }
 
-        public SalsaWindow(MainWindow mw, KinectWindow kw, BeatManager bm)
+        private List<(double, int)> plotSalsaSteps = new List<(double, int)>();
+
+        public SalsaWindow(MainWindow mw, KinectWindow kw, SalsaBeatManager bm)
         {
             InitializeComponent();
             label_BeatCounter.Content = "-";
@@ -82,11 +84,11 @@ namespace DancingTrainer
             focus = new Feedback(new BitmapImage(new Uri(@"images\Focus.png", UriKind.RelativeOrAbsolute)), "Look straight");
             movebody = new Feedback(new BitmapImage(new Uri(@"images\MoveYourBody.png", UriKind.RelativeOrAbsolute)), "Move Body");
 
-            feedbackArray = new Feedback[4];
-            feedbackArray[0] = offbeat;
-            feedbackArray[1] = movebody;
-            feedbackArray[2] = focus;
-            feedbackArray[3] = smile;
+            FeedbackArray = new Feedback[4];
+            FeedbackArray[0] = offbeat;
+            FeedbackArray[1] = movebody;
+            FeedbackArray[2] = focus;
+            FeedbackArray[3] = smile;
 
             // init the gesture detector salsa list
             // one gesture detector for every potential body
@@ -109,7 +111,7 @@ namespace DancingTrainer
                     {
                         // add the frame to the video list
                         //record.ContinueWith(x => video.Add(kinWin.ColorBitmap));
-                        record = Task.Factory.StartNew(() => video.Add(kinWin.ColorBitmap));
+                        Record = Task.Factory.StartNew(() => Video.Add(kinWin.ColorBitmap));
                         //if (vfw.IsOpen)
                         //{
                         //    vfw.WriteVideoFrame(BitmapSourceToBitmap(kinWin.ColorBitmap));
@@ -152,14 +154,14 @@ namespace DancingTrainer
 
         private void WriteVideo(string filename)
         {
-            int width = (int)video[0].Width;
-            int height = (int)video[0].Height;
+            int width = (int)Video[0].Width;
+            int height = (int)Video[0].Height;
             // create instance of video writer
             VideoFileWriter writer = new VideoFileWriter();
             // create new video file
             writer.Open(filename, width, height, 30, VideoCodec.MPEG4);
 
-            for (int i = 0; i < video.Count; i++)
+            for (int i = 0; i < Video.Count; i++)
             {
                 Bitmap btm = new Bitmap(BitmapSourceToBitmap(kinWin.ColorBitmap));
                 writer.WriteVideoFrame(btm);
@@ -182,7 +184,10 @@ namespace DancingTrainer
             {              
                 StartBodyCapturing();
                 StartFaceCapturing();
-                feedbackTimer.Start();
+                if (kinWin.isRecording)
+                {
+                    feedbackTimer.Start();
+                }            
                 //vfw.Open("test.avi", (int)kinWin.ColorBitmap.Width, (int)kinWin.ColorBitmap.Height, 30, VideoCodec.MPEG4);
             }
             else
@@ -259,22 +264,26 @@ namespace DancingTrainer
                 dynamic timeline = new JObject();
                 timeline.Date = SessionStart.Date.ToString();
                 timeline.TotalDuration = beatMan.totalDuration;
+                timeline.Song = mainWin.combobox_MusicList.SelectedItem.ToString();
+                timeline.BPM = beatMan.BPM;
                 timeline.Name = "Test";
                 timeline.Feedback = new JArray() as dynamic;
+                timeline.PlotSalsaSteps = plotSalsaSteps;
 
                 List<(string name, double feedback_start, double display_start, double feedback_end)> temp;
                 temp = new List<(string name, double feedback_start, double display_start, double feedback_end)>();
 
-                // add data for json
-                foreach (Feedback f in feedbackArray)
+                // collect data for feedback array in json
+                foreach (Feedback f in FeedbackArray)
                 {
-                    foreach (var elem in f.schedule)
+                    foreach (var elem in f.Schedule)
                     {
-                        temp.Add((f.instruction, elem.Item1, elem.Item2, elem.Item3));
+                        temp.Add((f.Instruction, elem.Item1, elem.Item2, elem.Item3));
                     }
                 }
                 temp = temp.OrderBy(x => x.feedback_start).ThenBy(y => y.display_start).ToList();
-
+                
+                // add data to feedback array in json
                 var feedbackObject = new JObject();
                 foreach (var item in temp)
                 {
@@ -288,6 +297,8 @@ namespace DancingTrainer
 
                     timeline.Feedback.Add(feedbackObject);
                 }
+
+
 
                 string json = JsonConvert.SerializeObject(timeline);
                 File.WriteAllText(sfdg.FileName, json);
@@ -312,44 +323,44 @@ namespace DancingTrainer
             {
                 default:
                     img_Left_Forward.Source = null;
-                    img_Left_Neutral.Source = new BitmapImage(new Uri(@"images\Left.png", UriKind.RelativeOrAbsolute));
+                    img_Left_Neutral.Source = new BitmapImage(new Uri(@"images\LeftLight.png", UriKind.RelativeOrAbsolute));
                     img_Left_Backward.Source = null;
 
                     img_Right_Forward.Source = null;
-                    img_Right_Neutral.Source = new BitmapImage(new Uri(@"images\Right.png", UriKind.RelativeOrAbsolute));
+                    img_Right_Neutral.Source = new BitmapImage(new Uri(@"images\RightLight.png", UriKind.RelativeOrAbsolute));
                     img_Right_Backward.Source = null;
                     break;
                 case 1:
                     if (mi_Straight.IsEnabled)
                     {
                         img_Left_Neutral.HorizontalAlignment = System.Windows.HorizontalAlignment.Center;
-                        img_Left_Neutral.Source = new BitmapImage(new Uri(@"images\LeftLight.png", UriKind.RelativeOrAbsolute));
-                    }
-                    if (mi_Side.IsEnabled)
-                    {
-                        img_Left_Forward.Source = new BitmapImage(new Uri(@"images\LeftLight.png", UriKind.RelativeOrAbsolute));
-                        img_Left_Neutral.Source = null;
-                        img_Left_Backward.Source = null;
-                        
-                    }
-                    img_Right_Forward.Source = null;
-                    img_Right_Neutral.Source = new BitmapImage(new Uri(@"images\Right.png", UriKind.RelativeOrAbsolute));
-                    img_Right_Backward.Source = null;
-                    break;
-                case 2:
-                    if (mi_Straight.IsEnabled)
-                    {
                         img_Left_Neutral.Source = new BitmapImage(new Uri(@"images\Left.png", UriKind.RelativeOrAbsolute));
-                        img_Right_Neutral.Source = new BitmapImage(new Uri(@"images\RightLight.png", UriKind.RelativeOrAbsolute));
                     }
                     if (mi_Side.IsEnabled)
                     {
                         img_Left_Forward.Source = new BitmapImage(new Uri(@"images\Left.png", UriKind.RelativeOrAbsolute));
                         img_Left_Neutral.Source = null;
                         img_Left_Backward.Source = null;
+                        
+                    }
+                    img_Right_Forward.Source = null;
+                    img_Right_Neutral.Source = new BitmapImage(new Uri(@"images\RightLight.png", UriKind.RelativeOrAbsolute));
+                    img_Right_Backward.Source = null;
+                    break;
+                case 2:
+                    if (mi_Straight.IsEnabled)
+                    {
+                        img_Left_Neutral.Source = new BitmapImage(new Uri(@"images\LeftLight.png", UriKind.RelativeOrAbsolute));
+                        img_Right_Neutral.Source = new BitmapImage(new Uri(@"images\Right.png", UriKind.RelativeOrAbsolute));
+                    }
+                    if (mi_Side.IsEnabled)
+                    {
+                        img_Left_Forward.Source = new BitmapImage(new Uri(@"images\LeftLight.png", UriKind.RelativeOrAbsolute));
+                        img_Left_Neutral.Source = null;
+                        img_Left_Backward.Source = null;
 
                         img_Right_Forward.Source = null;
-                        img_Right_Neutral.Source = new BitmapImage(new Uri(@"images\RightLight.png", UriKind.RelativeOrAbsolute));
+                        img_Right_Neutral.Source = new BitmapImage(new Uri(@"images\Right.png", UriKind.RelativeOrAbsolute));
                         img_Right_Backward.Source = null;
                     }
                     break;
@@ -359,44 +370,44 @@ namespace DancingTrainer
                         img_Left_Neutral.HorizontalAlignment = System.Windows.HorizontalAlignment.Right;
                     }
                     img_Left_Forward.Source = null;
-                    img_Left_Neutral.Source = new BitmapImage(new Uri(@"images\LeftLight.png", UriKind.RelativeOrAbsolute));
+                    img_Left_Neutral.Source = new BitmapImage(new Uri(@"images\Left.png", UriKind.RelativeOrAbsolute));
                     img_Left_Backward.Source = null;
 
                     img_Right_Forward.Source = null;
-                    img_Right_Neutral.Source = new BitmapImage(new Uri(@"images\Right.png", UriKind.RelativeOrAbsolute));
+                    img_Right_Neutral.Source = new BitmapImage(new Uri(@"images\RightLight.png", UriKind.RelativeOrAbsolute));
                     img_Right_Backward.Source = null;
                     break;
                 case 5:                    
                     img_Left_Forward.Source = null;
-                    img_Left_Neutral.Source = new BitmapImage(new Uri(@"images\Left.png", UriKind.RelativeOrAbsolute));
+                    img_Left_Neutral.Source = new BitmapImage(new Uri(@"images\LeftLight.png", UriKind.RelativeOrAbsolute));
                     img_Left_Backward.Source = null;
 
                     if (mi_Straight.IsEnabled)
                     {
                         img_Right_Neutral.HorizontalAlignment = System.Windows.HorizontalAlignment.Center;
-                        img_Right_Neutral.Source = new BitmapImage(new Uri(@"images\RightLight.png", UriKind.RelativeOrAbsolute));
+                        img_Right_Neutral.Source = new BitmapImage(new Uri(@"images\Right.png", UriKind.RelativeOrAbsolute));
                     }
                     if (mi_Side.IsEnabled)
                     {
                         img_Right_Forward.Source = null;
                         img_Right_Neutral.Source = null;
-                        img_Right_Backward.Source = new BitmapImage(new Uri(@"images\RightLight.png", UriKind.RelativeOrAbsolute));
+                        img_Right_Backward.Source = new BitmapImage(new Uri(@"images\Right.png", UriKind.RelativeOrAbsolute));
                     }                    
                     break;
                 case 6:
                     if (mi_Straight.IsEnabled)
                     {
-                        img_Left_Neutral.Source = new BitmapImage(new Uri(@"images\LeftLight.png", UriKind.RelativeOrAbsolute));
-                        img_Right_Neutral.Source = new BitmapImage(new Uri(@"images\Right.png", UriKind.RelativeOrAbsolute));
+                        img_Left_Neutral.Source = new BitmapImage(new Uri(@"images\Left.png", UriKind.RelativeOrAbsolute));
+                        img_Right_Neutral.Source = new BitmapImage(new Uri(@"images\RightLight.png", UriKind.RelativeOrAbsolute));
                     }
                     if (mi_Side.IsEnabled)
                     {
                         img_Left_Forward.Source = null;
-                        img_Left_Neutral.Source = new BitmapImage(new Uri(@"images\LeftLight.png", UriKind.RelativeOrAbsolute));
+                        img_Left_Neutral.Source = new BitmapImage(new Uri(@"images\Left.png", UriKind.RelativeOrAbsolute));
                         img_Left_Backward.Source = null;
                         img_Right_Forward.Source = null;
                         img_Right_Neutral.Source = null;
-                        img_Right_Backward.Source = new BitmapImage(new Uri(@"images\Right.png", UriKind.RelativeOrAbsolute));
+                        img_Right_Backward.Source = new BitmapImage(new Uri(@"images\RightLight.png", UriKind.RelativeOrAbsolute));
                     }                    
                     break;
                 case 7:
@@ -405,11 +416,11 @@ namespace DancingTrainer
                         img_Right_Neutral.HorizontalAlignment = System.Windows.HorizontalAlignment.Left;
                     }
                     img_Left_Forward.Source = null;
-                    img_Left_Neutral.Source = new BitmapImage(new Uri(@"images\Left.png", UriKind.RelativeOrAbsolute));
+                    img_Left_Neutral.Source = new BitmapImage(new Uri(@"images\LeftLight.png", UriKind.RelativeOrAbsolute));
                     img_Left_Backward.Source = null;
 
                     img_Right_Forward.Source = null;
-                    img_Right_Neutral.Source = new BitmapImage(new Uri(@"images\RightLight.png", UriKind.RelativeOrAbsolute));
+                    img_Right_Neutral.Source = new BitmapImage(new Uri(@"images\Right.png", UriKind.RelativeOrAbsolute));
                     img_Right_Backward.Source = null;
                     break;
             }
@@ -457,22 +468,22 @@ namespace DancingTrainer
             // a new frame is arrived so check if the leg is raised or not
             // first get/set all the values of the body
 
-            bodies = kinWin.bodyFrameHandler.bodies;
+            Bodies = kinWin.bodyFrameHandler.bodies;
             bool dataReceived = false;
 
             using (BodyFrame bodyFrame = e.FrameReference.AcquireFrame())
             {
                 if (bodyFrame != null)
                 {
-                    if (this.bodies == null)
+                    if (this.Bodies == null)
                     {
-                        this.bodies = new Body[bodyFrame.BodyCount];
+                        this.Bodies = new Body[bodyFrame.BodyCount];
                     }
 
                     // The first time GetAndRefreshBodyData is called, Kinect will allocate each Body in the array.
                     // As long as those body objects are not disposed and not set to null in the array,
                     // those body objects will be re-used.
-                    bodyFrame.GetAndRefreshBodyData(this.bodies);
+                    bodyFrame.GetAndRefreshBodyData(this.Bodies);
 
                     // get the floor plane of the frame
 
@@ -482,9 +493,9 @@ namespace DancingTrainer
             // avoid setting the values again by getting them from bodyframehandler???
             if (dataReceived)
             {
-                for (int i = 0; i < bodies.Length; i++)
+                for (int i = 0; i < Bodies.Length; i++)
                 {
-                    Body body = this.bodies[i];
+                    Body body = this.Bodies[i];
                     ulong trackingId = body.TrackingId;
 
                     // if the current body TrackingId changed, update the corresponding gesture detector with the new value
@@ -497,39 +508,54 @@ namespace DancingTrainer
                         this.gestureDetectorSalsa[i].IsPaused = trackingId == 0;
                     }
 
-                    if (bodies[i] == null)
+                    if (Bodies[i] == null)
                     {
                         Console.WriteLine("Body " + i + " is null");
                     }
-                    else if (bodies[i].IsTracked)
+                    else if (Bodies[i].IsTracked)
                     {
                         // activate its gesture detector salsa
                         Console.WriteLine("##########################");
                         foreach (GestureDetectorSalsa gds in gestureDetectorSalsa)
                         {
-                            if (gds.TrackingId == bodies[i].TrackingId)
+                            if (gds.TrackingId == Bodies[i].TrackingId)
                             {
-                                double t = beatMan.stopWatch.Elapsed.TotalMilliseconds - beatMan.timerStopwatchOffset;
+                                double t = beatMan.StopWatch.Elapsed.TotalMilliseconds - beatMan.timerStopwatchOffset;
                                 Console.WriteLine("Gesture Detector " + gds.currentSalsaBeatCounter.ToString());
                                 Console.WriteLine("Time passed: {0}", gds.timePassed);
                                 Console.WriteLine("Original " + mainWin.label_BeatCounter.Content);
                                 Console.WriteLine(t.ToString());
-                                Console.WriteLine((beatMan.beatCounter*beatMan.MSPB).ToString());
+                                Console.WriteLine((beatMan.BeatCounter*beatMan.MSPB).ToString());
                                 Console.WriteLine(beatMan.millisecondsPast.ToString());
                                 Console.WriteLine(gds.IsGestureToTheBeat);
                                 if (gds.IsGestureToTheBeat) {
                                     // you are to the beat
                                     //OFFBEAT.LowerHand(DateTime.Now.Subtract(SessionStart).TotalMilliseconds);
-                                    offbeat.LowerHand(beatMan.stopWatch.Elapsed.TotalMilliseconds);
+                                    //offbeat.LowerHand(beatMan.StopWatch.Elapsed.TotalMilliseconds);
+                                    offbeat.LowerHand(t);
                                     Console.WriteLine("to the beat");
                                 }
                                 else
                                 {
                                     // you are off the beat
                                     //OFFBEAT.RaiseHand(DateTime.Now.Subtract(SessionStart).TotalMilliseconds);
-                                    offbeat.RaiseHand(beatMan.stopWatch.Elapsed.TotalMilliseconds);
+                                    //offbeat.RaiseHand(beatMan.StopWatch.Elapsed.TotalMilliseconds);
+                                    offbeat.RaiseHand(t);
                                     Console.WriteLine("off the beat");
                                 }
+                                // assume that only one body is tracked at the time
+                                try
+                                {
+                                    if (plotSalsaSteps.Last().Item2 != gds.currentSalsaBeatCounter)
+                                    {
+                                        plotSalsaSteps.Add((t, gds.currentSalsaBeatCounter));
+                                    }
+                                }
+                                catch (Exception)
+                                {
+                                    plotSalsaSteps.Add((t, gds.currentSalsaBeatCounter));
+                                }
+                                
                                 if (mode != "normal")
                                 {
                                     Console.WriteLine(gds.currentSalsaBeatCounter);
@@ -540,32 +566,32 @@ namespace DancingTrainer
                         Console.WriteLine("##########################");
 
                         // FOCUS feedback: check for the angle of the neck
-                        Joint neck = bodies[i].Joints[JointType.Neck];
-                        Joint head = bodies[i].Joints[JointType.Head];
-                        Joint spineShoulder = bodies[i].Joints[JointType.SpineShoulder];
+                        Joint neck = Bodies[i].Joints[JointType.Neck];
+                        Joint head = Bodies[i].Joints[JointType.Head];
+                        Joint spineShoulder = Bodies[i].Joints[JointType.SpineShoulder];
                         double neckAngle = neck.Angle(head, spineShoulder);
 
                         if (neckAngle >= 170 && neckAngle <= 190)
                         {
                             // end feedback
                             //FOCUS.LowerHand(DateTime.Now.Subtract(SessionStart).TotalMilliseconds);
-                            focus.LowerHand(beatMan.stopWatch.Elapsed.TotalMilliseconds);
+                            focus.LowerHand(beatMan.StopWatch.Elapsed.TotalMilliseconds);
                         }
                         else
                         {
                             // start feedback
                             //FOCUS.RaiseHand(DateTime.Now.Subtract(SessionStart).TotalMilliseconds);
-                            focus.RaiseHand(beatMan.stopWatch.Elapsed.TotalMilliseconds);
+                            focus.RaiseHand(beatMan.StopWatch.Elapsed.TotalMilliseconds);
                         }
 
                         // MOVEBODY feedback: check for the angle of elbow and shoulder
                         //UpperBodyMotionCapturing(bodies[i]);
-                        Joint shoulderRight = bodies[i].Joints[JointType.ShoulderRight];
-                        Joint shoulderLeft = bodies[i].Joints[JointType.ShoulderLeft];
-                        Joint elbowLeft = bodies[i].Joints[JointType.ElbowLeft];
-                        Joint elbowRight = bodies[i].Joints[JointType.ElbowRight];
-                        Joint handLeft = bodies[i].Joints[JointType.HandLeft];
-                        Joint handRight = bodies[i].Joints[JointType.HandRight];
+                        Joint shoulderRight = Bodies[i].Joints[JointType.ShoulderRight];
+                        Joint shoulderLeft = Bodies[i].Joints[JointType.ShoulderLeft];
+                        Joint elbowLeft = Bodies[i].Joints[JointType.ElbowLeft];
+                        Joint elbowRight = Bodies[i].Joints[JointType.ElbowRight];
+                        Joint handLeft = Bodies[i].Joints[JointType.HandLeft];
+                        Joint handRight = Bodies[i].Joints[JointType.HandRight];
 
                         double elbowAngleLeft = elbowLeft.Angle(handLeft, shoulderLeft);
                         double shoulderAngleLeft = shoulderLeft.Angle(elbowLeft, spineShoulder);
@@ -713,6 +739,8 @@ namespace DancingTrainer
         {
             return new Vector3D(Math.Round(u.X, digits), Math.Round(u.X, digits),Math.Round(u.Z, digits));
         }
+
+
         private double Angle3D(Vector3D v1,Vector3D v2)
         {
             double dot = v1.X * v2.X + v1.Y * v2.Y + v1.Z * v2.Z;
@@ -763,38 +791,37 @@ namespace DancingTrainer
         private void FeedbackTimer_Elapsed(object sender, ElapsedEventArgs e)
         {
             // reset
-            if (currentFeedbackCounter >= feedbackArray.Length - 1)
+            if (currentFeedbackCounter >= FeedbackArray.Length - 1)
             {
                 currentFeedbackCounter = 0;
             }
 
-            while (currentFeedbackCounter < feedbackArray.Length)
+            while (currentFeedbackCounter < FeedbackArray.Length)
             {
-                if (feedbackArray[currentFeedbackCounter].isActive)
-                if (feedbackArray[currentFeedbackCounter].isActive)
+                if (FeedbackArray[currentFeedbackCounter].IsActive)
                 {
-                    if (!feedbackArray[currentFeedbackCounter].isDisplayed)
+                    if (!FeedbackArray[currentFeedbackCounter].IsDisplayed)
                     {
-                        Console.WriteLine(feedbackArray[currentFeedbackCounter].instruction + " is active and going to be displayed");
+                        Console.WriteLine(FeedbackArray[currentFeedbackCounter].Instruction + " is active and going to be displayed");
                         // can not access object because it is used by another thread
-                        SetImageSource(feedbackArray[currentFeedbackCounter].source);
-                        SetLabelContent(feedbackArray[currentFeedbackCounter].instruction);
+                        SetImageSource(FeedbackArray[currentFeedbackCounter].Source);
+                        SetLabelContent(FeedbackArray[currentFeedbackCounter].Instruction);
                         //feedbackArray[currentFeedbackCounter].StartTalking(DateTime.Now.Subtract(SessionStart).TotalMilliseconds);
-                        feedbackArray[currentFeedbackCounter].StartTalking(beatMan.stopWatch.Elapsed.TotalMilliseconds);
-                        feedbackArray[currentFeedbackCounter].isDisplayed = true;
+                        FeedbackArray[currentFeedbackCounter].StartTalking(beatMan.StopWatch.Elapsed.TotalMilliseconds);
+                        FeedbackArray[currentFeedbackCounter].IsDisplayed = true;
                     }
                     else
                     {
-                        Console.WriteLine(feedbackArray[currentFeedbackCounter].instruction + " is active and displayed.");
+                        Console.WriteLine(FeedbackArray[currentFeedbackCounter].Instruction + " is active and displayed.");
                     }
                     break;
                 }
                 else
                 {
-                    Console.WriteLine(feedbackArray[currentFeedbackCounter].instruction + "is not active. Clear UI.");
+                    Console.WriteLine(FeedbackArray[currentFeedbackCounter].Instruction + "is not active. Clear UI.");
                     SetImageSource(null);
                     SetLabelContent("");
-                    feedbackArray[currentFeedbackCounter].isDisplayed = false;
+                    FeedbackArray[currentFeedbackCounter].IsDisplayed = false;
                     currentFeedbackCounter++;
                 }
             }
@@ -826,12 +853,12 @@ namespace DancingTrainer
                         {
                             // start feedback
                             //SMILE.RaiseHand(DateTime.Now.Subtract(SessionStart).TotalMilliseconds);
-                            smile.RaiseHand(beatMan.stopWatch.Elapsed.TotalMilliseconds);
+                            smile.RaiseHand(beatMan.StopWatch.Elapsed.TotalMilliseconds);
                         }
                         else
                         {
                             //SMILE.LowerHand(DateTime.Now.Subtract(SessionStart).TotalMilliseconds);
-                            smile.LowerHand(beatMan.stopWatch.Elapsed.TotalMilliseconds);
+                            smile.LowerHand(beatMan.StopWatch.Elapsed.TotalMilliseconds);
                         }
                     }
                     else
@@ -957,6 +984,47 @@ namespace DancingTrainer
         {
             mi_Side.IsEnabled = true;
             mi_Straight.IsEnabled = false;
+        }
+
+        private void MenuItem_Timeline_Click(object sender, RoutedEventArgs e)
+        {
+            OpenFileDialog ofdg = new OpenFileDialog
+            {
+                Title = "Open Json as Feedback Timeline",
+                InitialDirectory = @"c:\",
+                Filter = "json files (*.json)|*.json|All files (*.*)|*.*",
+                FilterIndex = 1,
+                CheckFileExists = false,
+                CheckPathExists = true,
+                RestoreDirectory = true,
+            };
+            //ofdg.ShowDialog();
+            if (ofdg.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+            {
+                SalsaDashboard timeline = new SalsaDashboard(ofdg.FileName);
+                timeline.Show();
+            }
+        }
+
+        private void MenuItem_PlotSalsaSteps_Click(object sender, RoutedEventArgs e)
+        {
+            OpenFileDialog ofdg = new OpenFileDialog
+            {
+                Title = "Open Json to Plot Salsa Steps",
+                InitialDirectory = @"c:\",
+                Filter = "json files (*.json)|*.json|All files (*.*)|*.*",
+                FilterIndex = 1,
+                CheckFileExists = false,
+                CheckPathExists = true,
+                RestoreDirectory = true,
+            };
+            //ofdg.ShowDialog();
+            if (ofdg.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+            {
+                // open window that plots the salsa steps
+                //Timeline timeline = new Timeline(ofdg.FileName);
+                //timeline.Show();
+            }
         }
     }
 }

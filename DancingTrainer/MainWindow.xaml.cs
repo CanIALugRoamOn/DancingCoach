@@ -26,7 +26,7 @@ namespace DancingTrainer
 
         private DateTime sessionStart;
 
-        public BeatManager beatMan;
+        public SalsaBeatManager beatMan;
         private KinectManager kinMan;
         private SalsaWindow salWin;
 
@@ -113,7 +113,7 @@ namespace DancingTrainer
 
             int seconds = Int32.Parse(length.FirstValue().ToString());
             // this is passed such that the class can write back to the UI
-            beatMan = new BeatManager(this, (int)bpm.FirstValue(), seconds);
+            beatMan = new SalsaBeatManager(this, (int)bpm.FirstValue(), seconds);
 
             // Load (Salsa) Dancing Trainer component
             salWin = new SalsaWindow(this, kw_KinWin, beatMan);

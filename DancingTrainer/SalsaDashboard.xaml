@@ -1,0 +1,43 @@
+﻿<Window x:Class="DancingTrainer.SalsaDashboard"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:oxy="clr-namespace:OxyPlot.Wpf;assembly=OxyPlot.Wpf" 
+        mc:Ignorable="d"
+        Title="Timeline" Height="600" Width="800">
+    
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="8*"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="6*"/>
+        </Grid.RowDefinitions>
+        <Label Name="label_Smile" Grid.Column="0" Content="Smiling" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        <Grid x:Name="timeline_Smile" Width="600"  Margin="10,0,10,0" Grid.Column="1" HorizontalAlignment="Stretch" Height="30" VerticalAlignment="Center" Background="Green">
+        </Grid>
+
+        <Label Name="label_Focus" Grid.Row="1" Grid.Column="0" Content="Look Straight" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        <Grid x:Name="timeline_Focus" Width="600" Margin="10,0,10,0" Grid.Row="1" Grid.Column="1" HorizontalAlignment="Stretch" Height="30" VerticalAlignment="Center" Background="Green">
+        </Grid>
+
+        <Label Name="label_OffTheBeat" Grid.Row="2" Grid.Column="0" Content="To the Beat" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        <Grid x:Name="timeline_OffTheBeat" Width="600" Margin="10,0,10,0" Grid.Row="2" Grid.Column="1" HorizontalAlignment="Stretch" Height="30" VerticalAlignment="Center" Background="Green">
+        </Grid>
+        
+        <Label Name="label_MoveYourBody" Grid.Row="3" Grid.Column="0" Content="Body Moved" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        <Grid x:Name="timeline_MoveYourBody" Width="600" Margin="10,0,10,0" Grid.Row="3" Grid.Column="1" HorizontalAlignment="Stretch" Height="30" VerticalAlignment="Center" Background="Green">
+        </Grid>
+
+        <TextBlock Grid.Column="2" Grid.Row="1" Grid.RowSpan="3" TextWrapping="Wrap" Text="Green: No Feedback; Light Gray: Feedback Recognized; Gray: Feedback Displayed" VerticalAlignment="Top" Margin="0,0,0,0"/>
+
+        <oxy:PlotView x:Name="plot_SalsaSteps" Grid.Row="5" Grid.Column="1"  Model="{Binding Path=Model, UpdateSourceTrigger=PropertyChanged}" Background="White" />
+    </Grid>
+</Window>

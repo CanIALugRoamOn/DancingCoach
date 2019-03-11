@@ -6,25 +6,25 @@ using System.Windows.Media.Imaging;
 
 namespace DancingTrainer
 {
-    class Feedback
+    public class Feedback : IFeedback
     {
-        public BitmapImage source;
-        public string instruction;
-        public bool isActive = false;
-        public bool isDisplayed = false;
-        public bool isBlocked;
+        public BitmapImage Source { get; set; }
+        public string Instruction { get; set; }
+        public bool IsActive { get; set; } = false;
+        public bool IsDisplayed { get; set; } = false;
+        public bool IsBlocked { get; set; }
         public Timer blockAndRelease;
 
         // one entry represents feedback_start, displayed_start, displayed_end, feedback_end in milliseconds
         // -1 stands for undefined
-        public List<(double, double, double)> schedule = new List<(double, double, double)>();
+        public List<(double, double, double)> Schedule { get; set; } = new List<(double, double, double)>();
 
         public Feedback(BitmapImage s, string i)
         {
-            this.source = s;
-            this.instruction = i;
+            this.Source = s;
+            this.Instruction = i;
             blockAndRelease = new Timer(5000);
-            blockAndRelease.Elapsed += BlockÁndRelease_Elapsed;
+            blockAndRelease.Elapsed += BlockAndRelease_Elapsed;
             blockAndRelease.AutoReset = false;
         }
 
@@ -37,57 +37,57 @@ namespace DancingTrainer
 
         public void RaiseHand(double feedback_start)
         {
-            if (isBlocked)
+            if (IsBlocked)
             {
                 return;
             }
 
-            if (!isActive)
+            if (!IsActive)
             {
-                schedule.Add((feedback_start, double.NaN, double.NaN));
-                this.isActive = true;
+                Schedule.Add((feedback_start, double.NaN, double.NaN));
+                this.IsActive = true;
                 //Console.WriteLine(this.instruction + " is not recognized and was not active before: " + this.is_active);
             }
             else
             {
-                isActive = true;
+                IsActive = true;
                 //Console.WriteLine(this.instruction + " is not recognized and was active before: " + this.is_active);
             }
         }
 
         public void LowerHand(double feedback_end)
         {
-            if (isActive)
+            if (IsActive)
             {
-                (double, double, double) lastEntry = PopLastListElement(schedule);
+                (double, double, double) lastEntry = PopLastListElement(Schedule);
                 lastEntry.Item3 = feedback_end;
-                schedule.Add(lastEntry);
-                isDisplayed = false;
-                isActive = false;
-                isBlocked = true;
+                Schedule.Add(lastEntry);
+                IsDisplayed = false;
+                IsActive = false;
+                IsBlocked = true;
                 blockAndRelease.Start();
                 //Console.WriteLine(this.instruction + " is recognized and was active before: " + this.is_active);
             }
             else
             {
-                isDisplayed = false;
-                isActive = false;
+                IsDisplayed = false;
+                IsActive = false;
                 //Console.WriteLine(this.instruction + " is recognized and was not active before: " + this.is_active);
             }
         }
 
-        private void BlockÁndRelease_Elapsed(object sender, ElapsedEventArgs e)
+        private void BlockAndRelease_Elapsed(object sender, ElapsedEventArgs e)
         {
-            isBlocked = false;
+            IsBlocked = false;
         }
 
         public void StartTalking(double display_start)
         {
-            if (isActive)
+            if (IsActive)
             {
-                (double, double, double) lastEntry = PopLastListElement(schedule);
+                (double, double, double) lastEntry = PopLastListElement(Schedule);
                 lastEntry.Item2 = display_start;
-                schedule.Add(lastEntry);
+                Schedule.Add(lastEntry);
             }
             else
             {
@@ -97,7 +97,7 @@ namespace DancingTrainer
 
         public void ClearSchedule()
         {
-            schedule.Clear();
+            Schedule.Clear();
         }
     }
 }

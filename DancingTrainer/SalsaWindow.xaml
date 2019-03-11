@@ -20,7 +20,10 @@
         <Label x:Name="label_BeatCounterDescription" Content="Beat: "  Grid.Column="0" Grid.Row="1" HorizontalAlignment="Right" VerticalAlignment="Center" FontSize="30"/>
         <Menu x:Name="Menu" Grid.Row="0" HorizontalContentAlignment="Left" HorizontalAlignment="Stretch" Height="Auto" VerticalAlignment="Top" Width="Auto" Margin="0,0,-0.4,0" Grid.ColumnSpan="3">
             <MenuItem Header="File">
-                <MenuItem x:Name="mi_Open" Header="Open" IsEnabled="False"/>
+                <MenuItem x:Name="mi_Open" Header="Open">
+                    <MenuItem Name="mi_Timeline" Header="Timeline" Click="MenuItem_Timeline_Click"/>
+                    <MenuItem Name="mi_PlotSalsaSteps" Header="Plot Salsa Steps" Click="MenuItem_PlotSalsaSteps_Click"/>
+                </MenuItem>
                 <MenuItem x:Name="mi_Save" Header="Save" Click="MenuItem_OnSave_Click"/>
             </MenuItem>
             <MenuItem Header="View">
@@ -49,7 +52,7 @@
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
             <Image x:Name="img_Left_Forward" Grid.Row="0" Margin="5,5,10,5" HorizontalAlignment="Right"/>
-            <Image x:Name="img_Left_Neutral" Grid.Row="1" Margin="5,5,10,5" Source="images\Left.png" HorizontalAlignment="Right"/>
+            <Image x:Name="img_Left_Neutral" Grid.Row="1" Margin="5,5,10,5" Source="images\LeftLight.png" HorizontalAlignment="Right"/>
             <Image x:Name="img_Left_Backward" Grid.Row="2" Margin="5,5,10,5" HorizontalAlignment="Right"/>
             <ProgressBar x:Name="progbar_ForthAndBackProgress_Left" Grid.Row="0" HorizontalAlignment="Left" Height="10" Margin="0,26,0,0" VerticalAlignment="Top" Width="194" Maximum="1" Visibility="Hidden"/>
             <ProgressBar x:Name="progbar_FootTap_Left" HorizontalAlignment="Left" Height="10" Margin="0,98,0,0" VerticalAlignment="Top" Width="194" Maximum="1" Grid.RowSpan="2" Visibility="Hidden"/>
@@ -78,10 +81,8 @@
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
             <Image x:Name="img_Right_Forward" Grid.Row="0" Margin="10,5,5,5" HorizontalAlignment="Left"/>
-            <Image x:Name="img_Right_Neutral" Grid.Row="1" Margin="10,5,5,5" HorizontalAlignment="Left" Source="images\Right.png"/>
+            <Image x:Name="img_Right_Neutral" Grid.Row="1" Margin="10,5,5,5" HorizontalAlignment="Left" Source="images\RightLight.png"/>
             <Image x:Name="img_Right_Backward" Grid.Row="2" Margin="10,5,5,5" HorizontalAlignment="Left"/>
         </Grid>
-
-
     </Grid>
 </Window>

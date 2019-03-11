@@ -13,7 +13,7 @@ namespace DancingTrainer
     {
 
         public KinectWindow KW;
-        public BeatManager BM;
+        public SalsaBeatManager BM;
 
         // first tuple value indicates if left leg is raised
         // second tuple value indicates if right leg is raised
@@ -29,7 +29,7 @@ namespace DancingTrainer
 
         List<string> stanceData = new List<string>();
 
-        public KinectManager(KinectWindow kw, BeatManager bm)
+        public KinectManager(KinectWindow kw, SalsaBeatManager bm)
         {
             KW = kw;
             BM = bm;
@@ -44,7 +44,7 @@ namespace DancingTrainer
             KW.isRecording = true;
 
             // listen to the beat
-            BM.timer.Elapsed += Timer_Elapsed;
+            BM.Timer.Elapsed += Timer_Elapsed;
             //double timestamp = BM.millisecondsPast;
 
             // if a new frame arrives then check if the leg is raised or not
@@ -216,7 +216,7 @@ namespace DancingTrainer
         public void Stop()
         {
             // stop listening to the beat
-            BM.timer.Elapsed -= Timer_Elapsed;
+            BM.Timer.Elapsed -= Timer_Elapsed;
             KW.isRecording = false;
 
             // write array to csv
