@@ -67,7 +67,11 @@ namespace DancingTrainer
         public void CountBeat()
         {
             BeatCounter = 1;
-            WriteBeatCounterLabel((BeatCounter % 8).ToString());
+            if (SW.mode == "normal")
+            {
+                WriteBeatCounterLabel((BeatCounter % 8).ToString());
+            }
+            
             Timer = new System.Timers.Timer();
             // human reaction is 250ms on average
             // give the user time to react
@@ -87,7 +91,10 @@ namespace DancingTrainer
 
         private void Timer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
         {
-            WriteBeatCounterLabel((BeatCounter % 8 + 1).ToString());
+            if (SW.mode == "normal")
+            {
+                WriteBeatCounterLabel((BeatCounter % 8).ToString());
+            }
             BeatCounter++;
             millisecondsPast += MSPB;
             if (BeatCounter >= totalBeats)

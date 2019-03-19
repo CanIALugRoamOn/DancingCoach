@@ -17,6 +17,9 @@ using System.IO;
 using System.Threading.Tasks;
 using System.Runtime.InteropServices;
 using Accord.Video.FFMPEG;
+using System.Drawing.Imaging;
+using System.Diagnostics;
+using System.Windows.Media;
 
 namespace DancingTrainer
 {
@@ -54,11 +57,12 @@ namespace DancingTrainer
 
         Dictionary<JointType, CameraSpacePoint> prevJointPositions = new Dictionary<JointType, CameraSpacePoint>();
         Dictionary<JointType, double> motionAngles = new Dictionary<JointType, double>();
-        Vector3D forwardMovement = new Vector3D(0.0,0.0,-1.0);
-        private string mode = "normal";
-        public List<WriteableBitmap> Video { get; set; } = new List<WriteableBitmap>();
+        Vector3D referenceMovement = new Vector3D(0.0,0.0,-1.0);
+        public string mode = "normal";
+        public List<ImageSource> Video { get; set; } = new List<ImageSource>();
         //private VideoFileWriter vfw = new VideoFileWriter();
         public Task Record { get; set; }
+        public WriteableBitmap ColorBitmap { get; private set; }
 
         private List<(double, int)> plotSalsaSteps = new List<(double, int)>();
 
@@ -68,14 +72,14 @@ namespace DancingTrainer
             label_BeatCounter.Content = "-";
             mode = "normal";
             kinWin = kw;
-            kinWin.colorFrameReader.FrameArrived += ColorFrameReader_FrameArrived;
+            //kinWin.colorFrameReader.FrameArrived += ColorFrameReader_FrameArrived;
+            
             mainWin = mw;
             beatMan = bm;
             this.Title = "Salsa: " + mainWin.combobox_MusicList.SelectedItem.ToString();
             //BM.timer.Elapsed += Timer_Elapsed;
 
             feedbackTimer = new System.Timers.Timer{Interval = 3000};
-            Console.WriteLine("Start face captureing");
             feedbackTimer.Elapsed += FeedbackTimer_Elapsed;
 
             // define all your feedback
@@ -98,29 +102,42 @@ namespace DancingTrainer
                 gestureDetectorSalsa.Add(new GestureDetectorSalsa(this, kinWin.kinectSensor, beatMan));
             }
 
+
+            // create the colorFrameDescription from the ColorFrameSource using Bgra format
+            FrameDescription colorFrameDescription = kinWin.kinectSensor.ColorFrameSource.CreateFrameDescription(ColorImageFormat.Bgra);
+            ColorBitmap = new WriteableBitmap(colorFrameDescription.Width, colorFrameDescription.Height, 96.0, 96.0, System.Windows.Media.PixelFormats.Bgr32, null);
             this.Closing += SalsaWindow_Closing;
         }
 
         private void ColorFrameReader_FrameArrived(object sender, ColorFrameArrivedEventArgs e)
         {
-            using (ColorFrame cframe = e.FrameReference.AcquireFrame())
+            if (kinWin.isRecording)
             {
-                if (cframe != null)
-                {
-                    if (kinWin.isRecording)
-                    {
-                        // add the frame to the video list
-                        //record.ContinueWith(x => video.Add(kinWin.ColorBitmap));
-                        Record = Task.Factory.StartNew(() => Video.Add(kinWin.ColorBitmap));
-                        //if (vfw.IsOpen)
-                        //{
-                        //    vfw.WriteVideoFrame(BitmapSourceToBitmap(kinWin.ColorBitmap));
-                        //}
-                        //Bitmap btm = BitmapSourceToBitmap(kinWin.ColorBitmap);
-
-                    }
-                }
+                Video.Add(kinWin.ImageSource);
             }
+            
+
+            //using (ColorFrame cframe = e.FrameReference.AcquireFrame())
+            //{
+            //    if (cframe != null)
+            //    {
+            //        if (kinWin.isRecording)
+            //        {
+            //            WriteableBitmap b = kinWin.ColorBitmap;
+            //            // add the frame to the video list
+            //            //record.ContinueWith(x => video.Add(kinWin.ColorBitmap));
+            //            Record = Task.Factory.StartNew(() => Video.Add(b));
+            //            //Record = Task.Factory.StartNew(() => Video.Add(kinWin.ColorBitmap));
+
+            //            //if (vfw.IsOpen)
+            //            //{
+            //            //    vfw.WriteVideoFrame(BitmapSourceToBitmap(kinWin.ColorBitmap));
+            //            //}
+            //            //Bitmap btm = BitmapSourceToBitmap(kinWin.ColorBitmap);
+
+            //        }
+            //    }
+            //}
         }
 
         private Bitmap BitmapSourceToBitmap(BitmapSource srs)
@@ -144,13 +161,10 @@ namespace DancingTrainer
             {
                 if (ptr != IntPtr.Zero)
                     Marshal.FreeHGlobal(ptr);
+                
             }
         }
 
-        //private void WriteFrameIntoVideo()
-        //{
-        //    vfw.WriteVideoFrame(BitmapSourceToBitmap(kinWin.ColorBitmap));
-        //}
 
         private void WriteVideo(string filename)
         {
@@ -160,11 +174,15 @@ namespace DancingTrainer
             VideoFileWriter writer = new VideoFileWriter();
             // create new video file
             writer.Open(filename, width, height, 30, VideoCodec.MPEG4);
-
+            Stopwatch s = new Stopwatch();
             for (int i = 0; i < Video.Count; i++)
-            {
-                Bitmap btm = new Bitmap(BitmapSourceToBitmap(kinWin.ColorBitmap));
+            {            
+                s.Restart();
+                Bitmap btm = new Bitmap(BitmapSourceToBitmap((BitmapSource)Video[i]));
                 writer.WriteVideoFrame(btm);
+                s.Stop();
+                Console.WriteLine(s.Elapsed.TotalMilliseconds);
+
             }
             writer.Close();
         }
@@ -178,6 +196,19 @@ namespace DancingTrainer
 
         public void Play()
         {
+            try
+            {
+                Video.Clear();
+                plotSalsaSteps.Clear();
+                foreach (Feedback item in FeedbackArray)
+                {
+                    item.ClearSchedule();
+                }
+            }
+            catch (Exception)
+            {
+                // nothing
+            }
             isRunning = true;
             Menu.IsEnabled = false;
             if (mode == "normal")
@@ -268,7 +299,7 @@ namespace DancingTrainer
                 timeline.BPM = beatMan.BPM;
                 timeline.Name = "Test";
                 timeline.Feedback = new JArray() as dynamic;
-                timeline.PlotSalsaSteps = plotSalsaSteps;
+                timeline.PlotSalsaSteps = new JArray() as dynamic;
 
                 List<(string name, double feedback_start, double display_start, double feedback_end)> temp;
                 temp = new List<(string name, double feedback_start, double display_start, double feedback_end)>();
@@ -289,7 +320,7 @@ namespace DancingTrainer
                 {
                     feedbackObject = new JObject
                     {
-                        { "Name", item.ToTuple().Item1 },
+                        { "Instruction", item.ToTuple().Item1 },
                         { "Feedback Start", item.ToTuple().Item2 },
                         { "Display Start", item.ToTuple().Item3 },
                         { "Feedback End", item.ToTuple().Item4 }
@@ -298,22 +329,35 @@ namespace DancingTrainer
                     timeline.Feedback.Add(feedbackObject);
                 }
 
+                // add data to plot salsa array
+                var plotSalsaObj = new JObject();
+                foreach ((double,int) item in plotSalsaSteps)
+                {
+                    plotSalsaObj = new JObject()
+                    {
+                        {"ms", item.Item1 },
+                        {"beat", item.Item2}
+                    };
+                    timeline.PlotSalsaSteps.Add(plotSalsaObj);
+                }
+
 
 
                 string json = JsonConvert.SerializeObject(timeline);
                 File.WriteAllText(sfdg.FileName, json);
-                string fname;
-                if (sfdg.FileName.Contains(".json"))
-                {
-                    fname = sfdg.FileName.Replace(".json", ".avi");
-                }
-                else
-                {
-                    fname = sfdg.FileName + ".avi";
-                }
-                DialogResult message = System.Windows.Forms.MessageBox.Show("Saving Video: Window closes on finish.");             
-                WriteVideo(fname);
-                // close on finish?
+
+                //string fname;
+                //if (sfdg.FileName.Contains(".json"))
+                //{
+                //    fname = sfdg.FileName.Replace(".json", ".avi");
+                //}
+                //else
+                //{
+                //    fname = sfdg.FileName + ".avi";
+                //}
+                //DialogResult message = System.Windows.Forms.MessageBox.Show("Saving Video: Window closes on finish.");
+                //WriteVideo(fname);
+                //close on finish ?
             }           
         }
 
@@ -544,22 +588,16 @@ namespace DancingTrainer
                                     Console.WriteLine("off the beat");
                                 }
                                 // assume that only one body is tracked at the time
-                                try
-                                {
-                                    if (plotSalsaSteps.Last().Item2 != gds.currentSalsaBeatCounter)
-                                    {
-                                        plotSalsaSteps.Add((t, gds.currentSalsaBeatCounter));
-                                    }
-                                }
-                                catch (Exception)
+                                if (mode == "normal")
                                 {
                                     plotSalsaSteps.Add((t, gds.currentSalsaBeatCounter));
                                 }
-                                
+                                                                
                                 if (mode != "normal")
                                 {
                                     Console.WriteLine(gds.currentSalsaBeatCounter);
                                     ShowStepsTutorial(gds.currentSalsaBeatCounter >= 8 ? 1 : gds.currentSalsaBeatCounter + 1);
+                                    label_BeatCounter.Content = (gds.currentSalsaBeatCounter >= 8 ? 1 : gds.currentSalsaBeatCounter + 1).ToString();
                                 }
                             }                            
                         }  
@@ -575,28 +613,37 @@ namespace DancingTrainer
                         {
                             // end feedback
                             //FOCUS.LowerHand(DateTime.Now.Subtract(SessionStart).TotalMilliseconds);
-                            focus.LowerHand(beatMan.StopWatch.Elapsed.TotalMilliseconds);
+                            focus.LowerHand(beatMan.StopWatch.Elapsed.TotalMilliseconds - beatMan.timerStopwatchOffset);
                         }
                         else
                         {
                             // start feedback
                             //FOCUS.RaiseHand(DateTime.Now.Subtract(SessionStart).TotalMilliseconds);
-                            focus.RaiseHand(beatMan.StopWatch.Elapsed.TotalMilliseconds);
+                            focus.RaiseHand(beatMan.StopWatch.Elapsed.TotalMilliseconds - beatMan.timerStopwatchOffset);
                         }
 
                         // MOVEBODY feedback: check for the angle of elbow and shoulder
-                        //UpperBodyMotionCapturing(bodies[i]);
-                        Joint shoulderRight = Bodies[i].Joints[JointType.ShoulderRight];
-                        Joint shoulderLeft = Bodies[i].Joints[JointType.ShoulderLeft];
-                        Joint elbowLeft = Bodies[i].Joints[JointType.ElbowLeft];
-                        Joint elbowRight = Bodies[i].Joints[JointType.ElbowRight];
-                        Joint handLeft = Bodies[i].Joints[JointType.HandLeft];
-                        Joint handRight = Bodies[i].Joints[JointType.HandRight];
+                        bool motionConfidence = UpperBodyMotionCapturing(Bodies[i]);
+                        if (motionConfidence)
+                        {
+                            movebody.LowerHand(beatMan.StopWatch.Elapsed.TotalMilliseconds-beatMan.timerStopwatchOffset);
+                        }
+                        else
+                        {
+                            movebody.RaiseHand(beatMan.StopWatch.Elapsed.TotalMilliseconds - beatMan.timerStopwatchOffset);
+                        }
 
-                        double elbowAngleLeft = elbowLeft.Angle(handLeft, shoulderLeft);
-                        double shoulderAngleLeft = shoulderLeft.Angle(elbowLeft, spineShoulder);
-                        double elbowAngleRight = elbowRight.Angle(handRight, shoulderRight);
-                        double shoulderAngleRight = shoulderRight.Angle(handRight, spineShoulder);
+                        //Joint shoulderRight = Bodies[i].Joints[JointType.ShoulderRight];
+                        //Joint shoulderLeft = Bodies[i].Joints[JointType.ShoulderLeft];
+                        //Joint elbowLeft = Bodies[i].Joints[JointType.ElbowLeft];
+                        //Joint elbowRight = Bodies[i].Joints[JointType.ElbowRight];
+                        //Joint handLeft = Bodies[i].Joints[JointType.HandLeft];
+                        //Joint handRight = Bodies[i].Joints[JointType.HandRight];
+
+                        //double elbowAngleLeft = elbowLeft.Angle(handLeft, shoulderLeft);
+                        //double shoulderAngleLeft = shoulderLeft.Angle(elbowLeft, spineShoulder);
+                        //double elbowAngleRight = elbowRight.Angle(handRight, shoulderRight);
+                        //double shoulderAngleRight = shoulderRight.Angle(handRight, spineShoulder);
 
                         //Console.WriteLine(elbowAngleLeft.ToString());
                         //Console.WriteLine(shoulderAngleLeft.ToString());
@@ -616,15 +663,15 @@ namespace DancingTrainer
             }
         }
 
-        private void UpperBodyMotionCapturing(Body body)
+        private bool UpperBodyMotionCapturing(Body body)
         {
-            Joint head = body.Joints[JointType.Head];
-            Joint neck = body.Joints[JointType.Neck];
-            Joint spineShoulder = body.Joints[JointType.SpineShoulder];
-            Joint spineMid = body.Joints[JointType.SpineMid];
-            Joint spineBase = body.Joints[JointType.SpineBase];
-            Joint hipLeft = body.Joints[JointType.HipLeft];
-            Joint hipRight = body.Joints[JointType.HipRight];
+            //Joint head = body.Joints[JointType.Head];
+            //Joint neck = body.Joints[JointType.Neck];
+            //Joint spineShoulder = body.Joints[JointType.SpineShoulder];
+            //Joint spineMid = body.Joints[JointType.SpineMid];
+            //Joint spineBase = body.Joints[JointType.SpineBase];
+            //Joint hipLeft = body.Joints[JointType.HipLeft];
+            //Joint hipRight = body.Joints[JointType.HipRight];
             Joint shoulderRight = body.Joints[JointType.ShoulderRight];
             Joint shoulderLeft = body.Joints[JointType.ShoulderLeft];
             Joint elbowLeft = body.Joints[JointType.ElbowLeft];
@@ -634,15 +681,25 @@ namespace DancingTrainer
             Joint handLeft = body.Joints[JointType.HandLeft];
             Joint handRight = body.Joints[JointType.HandRight];
 
+            // look only on sideways motion
+            //shoulderRight.Position.Y = 0;
+            //shoulderLeft.Position.Y = 0;
+            //elbowLeft.Position.Y = 0;
+            //elbowRight.Position.Y = 0;
+            //wristLeft.Position.Y = 0;
+            //wristRight.Position.Y = 0;
+            //handLeft.Position.Y = 0;
+            //handRight.Position.Y = 0;
+
             if (prevJointPositions.Count == 0)
             {
-                prevJointPositions.Add(JointType.Head, head.Position);
-                prevJointPositions.Add(JointType.Neck, neck.Position);
-                prevJointPositions.Add(JointType.SpineShoulder, spineShoulder.Position);
-                prevJointPositions.Add(JointType.SpineMid, spineMid.Position);
-                prevJointPositions.Add(JointType.SpineBase, spineBase.Position);
-                prevJointPositions.Add(JointType.HipLeft, hipLeft.Position);
-                prevJointPositions.Add(JointType.HipRight, hipRight.Position);
+                //prevJointPositions.Add(JointType.Head, head.Position);
+                //prevJointPositions.Add(JointType.Neck, neck.Position);
+                //prevJointPositions.Add(JointType.SpineShoulder, spineShoulder.Position);
+                //prevJointPositions.Add(JointType.SpineMid, spineMid.Position);
+                //prevJointPositions.Add(JointType.SpineBase, spineBase.Position);
+                //prevJointPositions.Add(JointType.HipLeft, hipLeft.Position);
+                //prevJointPositions.Add(JointType.HipRight, hipRight.Position);
                 prevJointPositions.Add(JointType.ShoulderLeft, shoulderLeft.Position);
                 prevJointPositions.Add(JointType.ShoulderRight, shoulderRight.Position);
                 prevJointPositions.Add(JointType.ElbowLeft, elbowLeft.Position);
@@ -652,39 +709,44 @@ namespace DancingTrainer
                 prevJointPositions.Add(JointType.HandLeft, handLeft.Position);
                 prevJointPositions.Add(JointType.HandRight, handRight.Position);
             }
+
+            
             
 
             //Console.WriteLine(RoundVector3D(spineMid.Position.ToVector3(), 1).ToString());
             //Console.WriteLine(RoundVector3D(prevJointPositions[JointType.SpineMid].ToVector3(), 1).ToString());
             //Console.WriteLine((RoundVector3D(spineMid.Position.ToVector3(), 1) - RoundVector3D(prevJointPositions[JointType.SpineMid].ToVector3(), 1)).ToString());
 
-            double headMotionAngle = Angle3D(RoundVector3D(head.Position.ToVector3(), 1) - RoundVector3D(prevJointPositions[JointType.Head].ToVector3(), 1), forwardMovement);
-            double neckMotionAngle = Angle3D(RoundVector3D(neck.Position.ToVector3(), 1) - RoundVector3D(prevJointPositions[JointType.Neck].ToVector3(), 1), forwardMovement);
-            double spineShoulderMotionAngle = Angle3D(RoundVector3D(spineShoulder.Position.ToVector3(), 1) - RoundVector3D(prevJointPositions[JointType.SpineShoulder].ToVector3(), 1), forwardMovement);
-            double spineMidMotionAngle = Angle3D(RoundVector3D(spineMid.Position.ToVector3(), 1) - RoundVector3D(prevJointPositions[JointType.SpineMid].ToVector3(), 1), forwardMovement);
-            double spineBaseMotionAngle = Angle3D(RoundVector3D(spineShoulder.Position.ToVector3(), 1) - RoundVector3D(prevJointPositions[JointType.SpineShoulder].ToVector3(), 1), forwardMovement);
-            double hipLeftMotionAngle = Angle3D(RoundVector3D(hipLeft.Position.ToVector3(), 1) - RoundVector3D(prevJointPositions[JointType.HipLeft].ToVector3(), 1), forwardMovement);
-            double hipRightMotionAngle = Angle3D(RoundVector3D(hipRight.Position.ToVector3(), 1) - RoundVector3D(prevJointPositions[JointType.HipRight].ToVector3(), 1), forwardMovement);
-            double shoulderLeftMotionAngle = Angle3D(RoundVector3D(shoulderLeft.Position.ToVector3(), 1) - RoundVector3D(prevJointPositions[JointType.ShoulderLeft].ToVector3(), 1), forwardMovement);
-            double shoulderRightMotionAngle = Angle3D(RoundVector3D(shoulderRight.Position.ToVector3(), 1) - RoundVector3D(prevJointPositions[JointType.ShoulderRight].ToVector3(), 1), forwardMovement);
-            double elbowLeftMotionAngle = Angle3D(RoundVector3D(elbowLeft.Position.ToVector3(), 1) - RoundVector3D(prevJointPositions[JointType.ElbowLeft].ToVector3(),2 ), forwardMovement);
-            double elbowRightMotionAngle = Angle3D(RoundVector3D(elbowRight.Position.ToVector3(), 1) - RoundVector3D(prevJointPositions[JointType.ElbowRight].ToVector3(), 1), forwardMovement);
-            double wristLeftMotionAngle = Angle3D(RoundVector3D(wristLeft.Position.ToVector3(), 1) - RoundVector3D(prevJointPositions[JointType.WristLeft].ToVector3(), 1), forwardMovement);
-            double wristRightMotionAngle = Angle3D(RoundVector3D(wristRight.Position.ToVector3(), 1) - RoundVector3D(prevJointPositions[JointType.WristRight].ToVector3(), 1), forwardMovement);
-            double handLeftMotionAngle = Angle3D(RoundVector3D(handLeft.Position.ToVector3(), 1) - RoundVector3D(prevJointPositions[JointType.HandLeft].ToVector3(), 1), forwardMovement);
-            double handRightMotionAngle = Angle3D(RoundVector3D(handRight.Position.ToVector3(), 1) - RoundVector3D(prevJointPositions[JointType.HandRight].ToVector3(), 1), forwardMovement);
+            //double headMotionAngle = Angle3D(RoundVector3D(head.Position.ToVector3(), 1) - RoundVector3D(prevJointPositions[JointType.Head].ToVector3(), 1), forwardMovement);
+            //double neckMotionAngle = Angle3D(RoundVector3D(neck.Position.ToVector3(), 1) - RoundVector3D(prevJointPositions[JointType.Neck].ToVector3(), 1), forwardMovement);
+            //double spineShoulderMotionAngle = Angle3D(RoundVector3D(spineShoulder.Position.ToVector3(), 1) - RoundVector3D(prevJointPositions[JointType.SpineShoulder].ToVector3(), 1), forwardMovement);
+            //double spineMidMotionAngle = Angle3D(RoundVector3D(spineMid.Position.ToVector3(), 1) - RoundVector3D(prevJointPositions[JointType.SpineMid].ToVector3(), 1), forwardMovement);
+            //double spineBaseMotionAngle = Angle3D(RoundVector3D(spineShoulder.Position.ToVector3(), 1) - RoundVector3D(prevJointPositions[JointType.SpineShoulder].ToVector3(), 1), forwardMovement);
+            //double hipLeftMotionAngle = Angle3D(RoundVector3D(hipLeft.Position.ToVector3(), 1) - RoundVector3D(prevJointPositions[JointType.HipLeft].ToVector3(), 1), forwardMovement);
+            //double hipRightMotionAngle = Angle3D(RoundVector3D(hipRight.Position.ToVector3(), 1) - RoundVector3D(prevJointPositions[JointType.HipRight].ToVector3(), 1), forwardMovement);
+            double shoulderLeftMotionAngle = Angle3D(RoundVector3D(shoulderLeft.Position.ToVector3(), 2) - RoundVector3D(prevJointPositions[JointType.ShoulderLeft].ToVector3(), 2), referenceMovement);
+            double shoulderRightMotionAngle = Angle3D(RoundVector3D(shoulderRight.Position.ToVector3(), 2) - RoundVector3D(prevJointPositions[JointType.ShoulderRight].ToVector3(), 2), referenceMovement);
+            double elbowLeftMotionAngle = Angle3D(RoundVector3D(elbowLeft.Position.ToVector3(), 2) - RoundVector3D(prevJointPositions[JointType.ElbowLeft].ToVector3(),2), referenceMovement);
+            double elbowRightMotionAngle = Angle3D(RoundVector3D(elbowRight.Position.ToVector3(), 2) - RoundVector3D(prevJointPositions[JointType.ElbowRight].ToVector3(), 2), referenceMovement);
+            double wristLeftMotionAngle = Angle3D(RoundVector3D(wristLeft.Position.ToVector3(), 2) - RoundVector3D(prevJointPositions[JointType.WristLeft].ToVector3(), 2), referenceMovement);
+            double wristRightMotionAngle = Angle3D(RoundVector3D(wristRight.Position.ToVector3(), 2) - RoundVector3D(prevJointPositions[JointType.WristRight].ToVector3(), 2), referenceMovement);
+            double handLeftMotionAngle = Angle3D(RoundVector3D(handLeft.Position.ToVector3(), 2) - RoundVector3D(prevJointPositions[JointType.HandLeft].ToVector3(), 2), referenceMovement);
+            double handRightMotionAngle = Angle3D(RoundVector3D(handRight.Position.ToVector3(), 2) - RoundVector3D(prevJointPositions[JointType.HandRight].ToVector3(), 2), referenceMovement);
 
-            Console.WriteLine((headMotionAngle, neckMotionAngle, spineShoulderMotionAngle, spineMidMotionAngle, spineBaseMotionAngle,
-                hipLeftMotionAngle, hipRightMotionAngle, shoulderLeftMotionAngle, shoulderRightMotionAngle, elbowLeftMotionAngle,
+            //Console.WriteLine((headMotionAngle, neckMotionAngle, spineShoulderMotionAngle, spineMidMotionAngle, spineBaseMotionAngle,
+            //    hipLeftMotionAngle, hipRightMotionAngle, shoulderLeftMotionAngle, shoulderRightMotionAngle, elbowLeftMotionAngle,
+            //    elbowRightMotionAngle, wristLeftMotionAngle, wristRightMotionAngle, handLeftMotionAngle, handRightMotionAngle));
+
+            Console.WriteLine((shoulderLeftMotionAngle, shoulderRightMotionAngle, elbowLeftMotionAngle,
                 elbowRightMotionAngle, wristLeftMotionAngle, wristRightMotionAngle, handLeftMotionAngle, handRightMotionAngle));
 
-            motionAngles[JointType.Head] = headMotionAngle;
-            motionAngles[JointType.Neck] = neckMotionAngle;
-            motionAngles[JointType.SpineShoulder] = spineShoulderMotionAngle;
-            motionAngles[JointType.SpineMid] = spineMidMotionAngle;
-            motionAngles[JointType.SpineBase] = spineBaseMotionAngle;
-            motionAngles[JointType.HipLeft] = hipLeftMotionAngle;
-            motionAngles[JointType.HipRight] = hipRightMotionAngle;
+            //motionAngles[JointType.Head] = headMotionAngle;
+            //motionAngles[JointType.Neck] = neckMotionAngle;
+            //motionAngles[JointType.SpineShoulder] = spineShoulderMotionAngle;
+            //motionAngles[JointType.SpineMid] = spineMidMotionAngle;
+            //motionAngles[JointType.SpineBase] = spineBaseMotionAngle;
+            //motionAngles[JointType.HipLeft] = hipLeftMotionAngle;
+            //motionAngles[JointType.HipRight] = hipRightMotionAngle;
             motionAngles[JointType.ShoulderLeft] = shoulderLeftMotionAngle;
             motionAngles[JointType.ShoulderRight] = shoulderRightMotionAngle;
             motionAngles[JointType.ElbowLeft] = elbowLeftMotionAngle;
@@ -694,22 +756,46 @@ namespace DancingTrainer
             motionAngles[JointType.HandLeft] = handLeftMotionAngle;
             motionAngles[JointType.HandRight] = handRightMotionAngle;
 
-            double sum = 0;
+            
+
+            double conf = 0;
             foreach (var item in motionAngles)
             {
                 if (35.0 < item.Value && item.Value < 145.0)
                 {
-                    sum++;
+                    switch (item.Key)
+                    {
+                        case JointType.ShoulderLeft:
+                            conf += 0.1;
+                            break;
+                        case JointType.ShoulderRight:
+                            conf += 0.1;
+                            break;
+                        default:
+                            conf += 0.1333;
+                            break;
+                        
+                    }
                 }
             }
-            sum = sum / 15.0;
-            //Console.WriteLine(sum);
+            //sum = sum / 15.0;
+            Console.WriteLine("Motion confidence: " + conf.ToString());
+            Console.WriteLine("Motion angles length: " + motionAngles.Count);
+            Console.WriteLine("Is there a motion? " + (conf > 0.77).ToString());
+            progbar_MoveBody.Value = conf;
+
+            //Vector3D[] data = new Vector3D[]
+            //{
+            //    head.Position.ToVector3(),neck.Position.ToVector3(),spineShoulder.Position.ToVector3(),spineMid.Position.ToVector3(),
+            //    spineBase.Position.ToVector3(),hipLeft.Position.ToVector3(),hipRight.Position.ToVector3(),shoulderLeft.Position.ToVector3(),
+            //    shoulderRight.Position.ToVector3(),elbowLeft.Position.ToVector3(),elbowRight.Position.ToVector3(),wristLeft.Position.ToVector3(),
+            //    wristRight.Position.ToVector3(),handLeft.Position.ToVector3(),handRight.Position.ToVector3()
+            //};
 
             Vector3D[] data = new Vector3D[]
             {
-                head.Position.ToVector3(),neck.Position.ToVector3(),spineShoulder.Position.ToVector3(),spineMid.Position.ToVector3(),
-                spineBase.Position.ToVector3(),hipLeft.Position.ToVector3(),hipRight.Position.ToVector3(),shoulderLeft.Position.ToVector3(),
-                shoulderRight.Position.ToVector3(),elbowLeft.Position.ToVector3(),elbowRight.Position.ToVector3(),wristLeft.Position.ToVector3(),
+                shoulderLeft.Position.ToVector3(),shoulderRight.Position.ToVector3(),elbowLeft.Position.ToVector3(),
+                elbowRight.Position.ToVector3(),wristLeft.Position.ToVector3(),
                 wristRight.Position.ToVector3(),handLeft.Position.ToVector3(),handRight.Position.ToVector3()
             };
 
@@ -717,13 +803,13 @@ namespace DancingTrainer
 
 
             // update position for the next frame
-            prevJointPositions[JointType.Head] = head.Position;
-            prevJointPositions[JointType.Neck] = neck.Position;
-            prevJointPositions[JointType.SpineShoulder] = spineShoulder.Position;
-            prevJointPositions[JointType.SpineMid] = spineMid.Position;
-            prevJointPositions[JointType.SpineBase] = spineBase.Position;
-            prevJointPositions[JointType.HipLeft] = hipLeft.Position;
-            prevJointPositions[JointType.HipRight] = hipRight.Position;
+            //prevJointPositions[JointType.Head] = head.Position;
+            //prevJointPositions[JointType.Neck] = neck.Position;
+            //prevJointPositions[JointType.SpineShoulder] = spineShoulder.Position;
+            //prevJointPositions[JointType.SpineMid] = spineMid.Position;
+            //prevJointPositions[JointType.SpineBase] = spineBase.Position;
+            //prevJointPositions[JointType.HipLeft] = hipLeft.Position;
+            //prevJointPositions[JointType.HipRight] = hipRight.Position;
             prevJointPositions[JointType.ShoulderLeft] = shoulderLeft.Position;
             prevJointPositions[JointType.ShoulderRight] = shoulderRight.Position;
             prevJointPositions[JointType.ElbowLeft] = elbowLeft.Position;
@@ -733,6 +819,8 @@ namespace DancingTrainer
             prevJointPositions[JointType.HandLeft] = handLeft.Position;
             prevJointPositions[JointType.HandRight] = handRight.Position;
 
+
+            return (conf > 0.77);
         }
 
         private Vector3D RoundVector3D(Vector3D u, int digits)
@@ -818,7 +906,7 @@ namespace DancingTrainer
                 }
                 else
                 {
-                    Console.WriteLine(FeedbackArray[currentFeedbackCounter].Instruction + "is not active. Clear UI.");
+                    Console.WriteLine(FeedbackArray[currentFeedbackCounter].Instruction + " is not active. Clear UI.");
                     SetImageSource(null);
                     SetLabelContent("");
                     FeedbackArray[currentFeedbackCounter].IsDisplayed = false;
@@ -853,12 +941,13 @@ namespace DancingTrainer
                         {
                             // start feedback
                             //SMILE.RaiseHand(DateTime.Now.Subtract(SessionStart).TotalMilliseconds);
-                            smile.RaiseHand(beatMan.StopWatch.Elapsed.TotalMilliseconds);
+                            smile.RaiseHand(beatMan.StopWatch.Elapsed.TotalMilliseconds-beatMan.timerStopwatchOffset);
+
                         }
                         else
                         {
                             //SMILE.LowerHand(DateTime.Now.Subtract(SessionStart).TotalMilliseconds);
-                            smile.LowerHand(beatMan.StopWatch.Elapsed.TotalMilliseconds);
+                            smile.LowerHand(beatMan.StopWatch.Elapsed.TotalMilliseconds-beatMan.timerStopwatchOffset);
                         }
                     }
                     else
@@ -903,6 +992,8 @@ namespace DancingTrainer
             progbar_FootTap_Left.Visibility = Visibility.Hidden;
             label_FootTap_Right.Visibility = Visibility.Hidden;
             progbar_FootTap_Right.Visibility = Visibility.Hidden;
+            label_MoveBody.Visibility = Visibility.Hidden;
+            progbar_MoveBody.Visibility = Visibility.Hidden;
         }
 
         private void MenuItem_OnTutorial_Click(object sender, RoutedEventArgs e)
@@ -921,6 +1012,8 @@ namespace DancingTrainer
             progbar_FootTap_Left.Visibility = Visibility.Hidden;
             label_FootTap_Right.Visibility = Visibility.Hidden;
             progbar_FootTap_Right.Visibility = Visibility.Hidden;
+            label_MoveBody.Visibility = Visibility.Hidden;
+            progbar_MoveBody.Visibility = Visibility.Hidden;
         }
 
         private void MenuItem_OnExperimental_Click(object sender, RoutedEventArgs e)
@@ -936,6 +1029,8 @@ namespace DancingTrainer
             progbar_FootTap_Left.Visibility = Visibility.Visible;
             label_FootTap_Right.Visibility = Visibility.Visible;
             progbar_FootTap_Right.Visibility = Visibility.Visible;
+            label_MoveBody.Visibility = Visibility.Visible;
+            progbar_MoveBody.Visibility = Visibility.Visible;
         }
 
         private void MenuItem_OnSave_Click(object sender, RoutedEventArgs e)
@@ -978,15 +1073,17 @@ namespace DancingTrainer
         {
             mi_Side.IsEnabled = false;
             mi_Straight.IsEnabled = true;
+            referenceMovement = new Vector3D(-1.0, 0.0, 0.0);
         }
 
         private void MenuItem_Straight_Click(object sender, RoutedEventArgs e)
         {
             mi_Side.IsEnabled = true;
             mi_Straight.IsEnabled = false;
+            referenceMovement = new Vector3D(0.0, 0.0, -1.0);
         }
 
-        private void MenuItem_Timeline_Click(object sender, RoutedEventArgs e)
+        private void MenuItem_Open_Click(object sender, RoutedEventArgs e)
         {
             OpenFileDialog ofdg = new OpenFileDialog
             {
@@ -1003,27 +1100,6 @@ namespace DancingTrainer
             {
                 SalsaDashboard timeline = new SalsaDashboard(ofdg.FileName);
                 timeline.Show();
-            }
-        }
-
-        private void MenuItem_PlotSalsaSteps_Click(object sender, RoutedEventArgs e)
-        {
-            OpenFileDialog ofdg = new OpenFileDialog
-            {
-                Title = "Open Json to Plot Salsa Steps",
-                InitialDirectory = @"c:\",
-                Filter = "json files (*.json)|*.json|All files (*.*)|*.*",
-                FilterIndex = 1,
-                CheckFileExists = false,
-                CheckPathExists = true,
-                RestoreDirectory = true,
-            };
-            //ofdg.ShowDialog();
-            if (ofdg.ShowDialog() == System.Windows.Forms.DialogResult.OK)
-            {
-                // open window that plots the salsa steps
-                //Timeline timeline = new Timeline(ofdg.FileName);
-                //timeline.Show();
             }
         }
     }

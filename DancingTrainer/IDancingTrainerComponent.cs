@@ -13,7 +13,7 @@ namespace DancingTrainer
         DateTime SessionStart { get; set; }
 
         Feedback[] FeedbackArray { get; set; }
-        List<WriteableBitmap> Video { get; set; }
+        //List<WriteableBitmap> Video { get; set; }
         Task Record { get; set; }
         void Play();
 

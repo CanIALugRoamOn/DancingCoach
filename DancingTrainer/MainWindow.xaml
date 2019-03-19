@@ -9,9 +9,9 @@
     <StackPanel>
         <Grid Height="100">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="140*" />
-                <ColumnDefinition Width="170*" />
-                <ColumnDefinition Width="90*" />
+                <ColumnDefinition Width="2*" />
+                <ColumnDefinition Width="4*" />
+                <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
             <StackPanel Grid.Column="1">
                 <TextBox x:Name="textbox_bamlDirectory" Margin="10,5,24.6,0" Height="23" VerticalAlignment="Top" RenderTransformOrigin="0.5,0.5"/>
@@ -19,7 +19,7 @@
                 <ComboBox x:Name="combobox_MusicList" Margin="10,5,0,0" Width="200" Height="23" HorizontalAlignment="Left" VerticalAlignment="Top" IsEnabled="False"/>
             </StackPanel>
             <StackPanel Grid.Column="0">
-                <TextBlock Text="Input Path to Beat Annotated Music Library:" Margin="30,5,0,0" Height="23" VerticalAlignment="Top" RenderTransformOrigin="0.5,0.5" HorizontalAlignment="Left" Width="248" />
+                <TextBlock Text="Input Path to Beat Annotated Music Library:" Margin="30,5,0,0" Height="23" VerticalAlignment="Top" RenderTransformOrigin="0.5,0.5" HorizontalAlignment="Right" Width="248" />
                 <TextBlock x:Name="label_GenreList" Margin="30,10,0,0" Height="23" Text="Genre:"  HorizontalAlignment="Right" Width="50" />
                 <TextBlock x:Name="label_MusicList" Margin="30,5,0,0" Height="23" Width="45" Text="Song:" VerticalAlignment="Top" HorizontalAlignment="Right" />
             </StackPanel>

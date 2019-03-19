@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Forms;
 using Deedle;
+using System.Windows.Media;
 
 namespace DancingTrainer
 {
@@ -53,8 +54,11 @@ namespace DancingTrainer
                 textbox_bamlDirectory.Text = rootPath;
 
                 // read the dataframe
+                
                 dfBaml = Deedle.Frame.ReadCsv(rootPath + "baml.csv", separators: "\t");
 
+                // relative pathing is weird when using the .exe
+                dfBaml = Deedle.Frame.ReadCsv(@"baml\baml.csv", separators: "\t");
                 // set the genres
                 SetGenres();
                 combobox_MusicList.IsEnabled = true;
@@ -93,10 +97,29 @@ namespace DancingTrainer
             string selectedGenre = combobox_GenreList.SelectedItem.ToString();
             Series<int, ObjectSeries<string>> temp = dfBaml.Rows.Where(df => df.Value.Get("Genre").ToString().Split(',').Contains(selectedGenre));
 
+            ComboBoxItem item;
             foreach (int key in temp.Keys)
             {
-                combobox_MusicList.Items.Add(temp.Get(key).Get("Song"));
+                item = new ComboBoxItem();
+                item.Content = temp.Get(key).Get("Song").ToString();
+                
+                int beatsPerMinute = Int32.Parse(temp.Get(key).Get("BPM").ToString());
+                if (beatsPerMinute < 90)
+                {
+                    item.Foreground = Brushes.Green;
+                }
+                if (beatsPerMinute >= 90 & beatsPerMinute < 110)
+                {
+                    item.Foreground = Brushes.Yellow;
+                }
+                if (beatsPerMinute >= 110)
+                {
+                    item.Foreground = Brushes.Red;
+                }
+                combobox_MusicList.Items.Add(item);
+                //combobox_MusicList.Items.Add(temp.Get(key).Get("Song"));
             }
+            
             combobox_MusicList.SelectedIndex = 0;
         }
 
@@ -237,7 +260,7 @@ namespace DancingTrainer
             img_Pause.IsEnabled = true;
             img_Stop.IsEnabled = false;
             // enable load button
-            button_Load.IsEnabled = true;
+            //button_Load.IsEnabled = true;
         }
 
         private void Img_Play_MouseDown(object sender, MouseButtonEventArgs e)

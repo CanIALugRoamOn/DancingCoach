@@ -54,7 +54,7 @@ namespace DancingTrainer
             JObject jobj = JObject.Parse(File.ReadAllText(json_path));
             foreach (JToken item in jobj["Feedback"])
             {
-                AddFeedback(item["Name"].ToString(), (double)item["Feedback Start"], (double)item["Display Start"], (double)item["Feedback End"], (double)jobj["TotalDuration"]);
+                AddFeedback(item["Instruction"].ToString(), (double)item["Feedback Start"], (double)item["Display Start"], (double)item["Feedback End"], (double)jobj["TotalDuration"]);
             }
             this.Title += " " + jobj["Name"] + " " + jobj["Date"] + " Duration: " + jobj["TotalDuration"] + " ms";
 
@@ -74,7 +74,7 @@ namespace DancingTrainer
                 case "Follow Beat":
                     AddRectangleToTimeline(timeline_OffTheBeat, recognition_start, displayed_start, recognition_end, total_duration);
                     break;
-                case "MoveYourBody":
+                case "Move Body":
                     AddRectangleToTimeline(timeline_MoveYourBody, recognition_start, displayed_start, recognition_end, total_duration);
                     break;
             }
@@ -170,7 +170,7 @@ namespace DancingTrainer
             };
 
             var ls = new LineSeries() { Title=jobj["Name"].ToString()};
-            foreach (JToken point in jobj["SalsaSteps"])
+            foreach (JToken point in jobj["PlotSalsaSteps"])
             {
                 ls.Points.Add(new DataPoint((double)point["ms"], (double)point["beat"]));
             }
@@ -179,11 +179,14 @@ namespace DancingTrainer
             tmp.Axes.Add(new LinearAxis { Position = AxisPosition.Bottom, Title = "Milliseconds" });
             
             var ls2 = new LineSeries() { Title = jobj["BPM"].ToString() + " BPM" };
-            double MSPB = 60f / (double)jobj["BPM"] * 1000;
-            for (double i = 0; i < (double)jobj["TotalDuration"] + MSPB; i+= MSPB)
+            int MSPB = (int)(60f / (double)jobj["BPM"] * 1000f);
+            for (int i = 0; i < (double)jobj["TotalDuration"] + MSPB; i+= MSPB)
             {
-                ls2.Points.Add(new DataPoint(i, (i/MSPB)%8+1));
-                ls2.Points.Add(new DataPoint(i+MSPB-1, (i / MSPB) % 8 + 1));
+                int beat = (i / MSPB % 8) + 1;
+                Console.WriteLine(i / MSPB % 8);
+                ls2.Points.Add(new DataPoint(i, beat));
+                ls2.Points.Add(new DataPoint(i+MSPB, beat));
+
             }
             tmp.Series.Add(ls2);
             //tmp.Axes.Add(new LinearAxis { Position = AxisPosition.Bottom, Title = jobj["BPM"].ToString() });

@@ -23,7 +23,7 @@ namespace DancingTrainer
 
         private void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
         {
-            File.WriteAllText("testtest.txt", e.ExceptionObject.ToString());
+            File.WriteAllText("error.txt", e.ExceptionObject.ToString());
         }
 
         // https://stackoverflow.com/questions/793100/globally-catch-exceptions-in-a-wpf-application

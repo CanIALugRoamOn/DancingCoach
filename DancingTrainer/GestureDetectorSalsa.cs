@@ -217,7 +217,7 @@ namespace DancingTrainer
                         {
                             //float val = gesture.GestureType == GestureType.Continuous ? continousResults[gesture].Progress : discreteResults[gesture].Confidence;
                             //Console.WriteLine(gesture.Name + ": " + val.ToString());
-                            Console.WriteLine(gesture.Name);
+                            //Console.WriteLine(gesture.Name);
                             if (gesture.GestureType == GestureType.Continuous)
                             {
                                 float progress = continousResults[gesture].Progress;
@@ -358,6 +358,7 @@ namespace DancingTrainer
             }
             if (gestureValues["ForthAndBackProgress_Left"] >= 0.45 && gestureValues["ForthAndBackProgress_Left"] <= 0.55)
             {
+
                 if (currentSalsaBeatCounter == 7)
                 {
                     currentSalsaBeatCounter = 8;

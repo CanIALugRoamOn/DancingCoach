@@ -20,10 +20,7 @@
         <Label x:Name="label_BeatCounterDescription" Content="Beat: "  Grid.Column="0" Grid.Row="1" HorizontalAlignment="Right" VerticalAlignment="Center" FontSize="30"/>
         <Menu x:Name="Menu" Grid.Row="0" HorizontalContentAlignment="Left" HorizontalAlignment="Stretch" Height="Auto" VerticalAlignment="Top" Width="Auto" Margin="0,0,-0.4,0" Grid.ColumnSpan="3">
             <MenuItem Header="File">
-                <MenuItem x:Name="mi_Open" Header="Open">
-                    <MenuItem Name="mi_Timeline" Header="Timeline" Click="MenuItem_Timeline_Click"/>
-                    <MenuItem Name="mi_PlotSalsaSteps" Header="Plot Salsa Steps" Click="MenuItem_PlotSalsaSteps_Click"/>
-                </MenuItem>
+                <MenuItem x:Name="mi_Open" Header="Open Json" Click="MenuItem_Open_Click"/>
                 <MenuItem x:Name="mi_Save" Header="Save" Click="MenuItem_OnSave_Click"/>
             </MenuItem>
             <MenuItem Header="View">
@@ -60,6 +57,8 @@
             <Label x:Name="label_FAndBProgress_Left" Grid.Row="0" Content="FAndBProgress_Left" HorizontalAlignment="Left" VerticalAlignment="Top" FontSize="12" Visibility="Hidden"/>
             <Label x:Name="label_FootTap_Left" Grid.Row="0" Content="FootTap_Left" HorizontalAlignment="Left" Margin="0,73,0,0" VerticalAlignment="Top" FontSize="12" Visibility="Hidden"/>
             <Label x:Name="label_FootTap_Right" Grid.Row="0" Content="FootTap_Right" HorizontalAlignment="Left" Margin="0,36,0,0" VerticalAlignment="Top" FontSize="12" Visibility="Hidden"/>
+            <Label Name="label_MoveBody" Grid.Row="2" Content="Move Body" HorizontalAlignment="Left" Margin="0,10,0,0" VerticalAlignment="Top" Visibility="Hidden"/>
+            <ProgressBar x:Name="progbar_MoveBody"  HorizontalAlignment="Left" Height="10" Margin="75,20,0,0" VerticalAlignment="Top" Width="180" Maximum="1" Value="-1" Grid.Row="2" Visibility="Hidden"/>
 
         </Grid>
 

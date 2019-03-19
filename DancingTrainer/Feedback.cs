@@ -30,9 +30,17 @@ namespace DancingTrainer
 
         private (double, double, double) PopLastListElement(List<(double, double, double)> l)
         {
-            (double, double, double) lastEntry = l.Last();
-            l.RemoveAt(l.Count - 1);
-            return lastEntry;
+            try
+            {
+                (double, double, double) lastEntry = l.Last();
+                l.RemoveAt(l.Count - 1);
+                return lastEntry;
+            }
+            catch (Exception)
+            {
+                return (double.NaN, double.NaN, double.NaN);
+            }
+            
         }
 
         public void RaiseHand(double feedback_start)
@@ -57,6 +65,11 @@ namespace DancingTrainer
 
         public void LowerHand(double feedback_end)
         {
+            // to be sure that nothing happens if its blocked
+            if (IsBlocked)
+            {
+                return;
+            }
             if (IsActive)
             {
                 (double, double, double) lastEntry = PopLastListElement(Schedule);
@@ -68,12 +81,12 @@ namespace DancingTrainer
                 blockAndRelease.Start();
                 //Console.WriteLine(this.instruction + " is recognized and was active before: " + this.is_active);
             }
-            else
-            {
-                IsDisplayed = false;
-                IsActive = false;
-                //Console.WriteLine(this.instruction + " is recognized and was not active before: " + this.is_active);
-            }
+            //else
+            //{
+            //    IsDisplayed = false;
+            //    IsActive = false;
+            //    //Console.WriteLine(this.instruction + " is recognized and was not active before: " + this.is_active);
+            //}
         }
 
         private void BlockAndRelease_Elapsed(object sender, ElapsedEventArgs e)
@@ -83,6 +96,11 @@ namespace DancingTrainer
 
         public void StartTalking(double display_start)
         {
+            // to be sure
+            if (IsBlocked)
+            {
+                return;
+            }
             if (IsActive)
             {
                 (double, double, double) lastEntry = PopLastListElement(Schedule);
