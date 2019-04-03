@@ -44,7 +44,7 @@ namespace DancingTrainer
             KW.isRecording = true;
 
             // listen to the beat
-            BM.Timer.Elapsed += Timer_Elapsed;
+            BM.BeatTimer.Elapsed += Timer_Elapsed;
             //double timestamp = BM.millisecondsPast;
 
             // if a new frame arrives then check if the leg is raised or not
@@ -216,7 +216,7 @@ namespace DancingTrainer
         public void Stop()
         {
             // stop listening to the beat
-            BM.Timer.Elapsed -= Timer_Elapsed;
+            BM.BeatTimer.Elapsed -= Timer_Elapsed;
             KW.isRecording = false;
 
             // write array to csv

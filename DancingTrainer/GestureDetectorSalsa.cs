@@ -3,6 +3,7 @@ using Microsoft.Kinect.VisualGestureBuilder;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Timers;
 
 namespace DancingTrainer
 {
@@ -32,6 +33,10 @@ namespace DancingTrainer
         SalsaBeatManager beatMan;
         private bool condition = false;
         public bool IsGestureToTheBeat { get; private set; } = false;
+        public Timer resetTimer;
+        private bool straightSteps;
+        private bool sideSteps;
+
         public ulong TrackingId
         {
             get
@@ -105,6 +110,79 @@ namespace DancingTrainer
 
             //BM.InitToTheBeatTimer();
             //BM.toTheBeat.Elapsed += ToTheBeat_Elapsed;
+            resetTimer = new Timer() { Interval = beatMan.MSPB * 5, AutoReset=false };
+            resetTimer.Elapsed += ResetTimer_Elapsed;
+
+            straightSteps = !salWin.mi_Straight.IsEnabled;
+            sideSteps = !salWin.mi_Side.IsEnabled;
+        }
+
+        private void ResetTimer_Elapsed(object sender, ElapsedEventArgs e)
+        {
+            Console.WriteLine("Heureka !!!");
+            // forth and back
+            if (straightSteps && !sideSteps)
+            {
+                if (gestureValues["ForthAndBackProgress_Left"] >= 0.95)
+                {
+                    currentSalsaBeatCounter = 1;
+                    if (gestureValues["FootTapping_Right"] >= 0.6)
+                    {
+                        currentSalsaBeatCounter = 2;
+                    }                   
+                }
+                if (gestureValues["ForthAndBackProgress_Left"] <= 0.05)
+                {
+                    currentSalsaBeatCounter = 5;
+                    if (gestureValues["FootTapping_Left"] >= 0.035)
+                    {
+                        currentSalsaBeatCounter = 6;
+                    }
+                }
+                if (gestureValues["ForthAndBackProgress_Left"] >= 0.45 && gestureValues["ForthAndBackProgress_Left"] <= 0.55)
+                {
+                    if (currentSalsaBeatCounter > 4 && currentSalsaBeatCounter <= 8)
+                    {
+                        currentSalsaBeatCounter = 8;
+                    }
+                    else
+                    {
+                        currentSalsaBeatCounter = 4;
+                    }
+                }
+                
+            }
+            // side steps
+            if (sideSteps && !straightSteps)
+            {
+                if (gestureValues["SideStepProgress_Left"] >= 0.95)
+                {
+                    currentSalsaBeatCounter = 1;
+                    if (gestureValues["SideFootTapping_Right"] >= 0.15)
+                    {
+                        currentSalsaBeatCounter = 2;
+                    }
+                }
+                if (gestureValues["SideStepProgress_Left"] <= 0.05)
+                {
+                    currentSalsaBeatCounter = 5;
+                    if (gestureValues["SideFootTapping_Left"] >= 0.7)
+                    {
+                        currentSalsaBeatCounter = 6;
+                    }
+                }
+                if (gestureValues["SideStepProgress_Left"] >= 0.45 && gestureValues["SideStepProgress_Left"] <= 0.55)
+                {
+                    if (currentSalsaBeatCounter > 4 && currentSalsaBeatCounter <= 8)
+                    {
+                        currentSalsaBeatCounter = 8;
+                    }
+                    else
+                    {
+                        currentSalsaBeatCounter = 4;
+                    }
+                }
+            }
         }
 
         private void ToTheBeat_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
@@ -231,7 +309,7 @@ namespace DancingTrainer
                                 WriteGestureOnUi((gesture.Name,(float)Math.Round(confidence, 2)));
                             }
                         }
-
+                        
                         if (!salWin.mi_Straight.IsEnabled)
                         {
                             // gesture detection for forth and back
@@ -245,6 +323,23 @@ namespace DancingTrainer
                 }               
             }
             stopWatch.Stop();
+            if (salWin.mode == "normal")
+            {
+                // do not lose extra time on the stopwatch
+                if (currentSalsaBeatCounter == beatMan.BeatCounter)
+                {
+                    ResetTimer(resetTimer);
+                }
+                else
+                {
+                    if (!resetTimer.Enabled)
+                    {
+                        resetTimer.Start();
+                    }
+                }
+            }
+            
+
             timePassed = beatMan.StopWatch.Elapsed.TotalMilliseconds - beatMan.timerStopwatchOffset;
             double beatsTimeDiff = timePassed - beatMan.BeatCounter * beatMan.MSPB;
             // 250 ms delay or maybe 100 ms ???
@@ -259,6 +354,14 @@ namespace DancingTrainer
             {
                 // to the beat
                 IsGestureToTheBeat = true;
+                float a = gestureValues["ForthAndBackProgress_Left"];
+                float b = gestureValues["FootTapping_Left"];
+                float c = gestureValues["FootTapping_Right"];
+                float d = (float)(beatMan.BeatCounter % 8 + 1);
+                float f = (float)this.currentSalsaBeatCounter;
+                float[] data = new float[] { a, b, c, d, f };
+                Console.WriteLine(string.Join(",", data));
+                salWin.gestureValuesList.Add(string.Join("\t", data));
             }           
             else
             {
@@ -269,6 +372,14 @@ namespace DancingTrainer
                 {
                     // to the beat
                     IsGestureToTheBeat = true;
+                    float a = gestureValues["ForthAndBackProgress_Left"];
+                    float b = gestureValues["FootTapping_Left"];
+                    float c = gestureValues["FootTapping_Right"];
+                    float d = (float)(beatMan.BeatCounter % 8 + 1);
+                    float f = (float)this.currentSalsaBeatCounter;
+                    float[] data = new float[] { a, b, c, d, f };
+                    Console.WriteLine(string.Join(",", data));
+                    salWin.gestureValuesList.Add(string.Join("\t", data));
                 }                
             }
             //if (timePassedList.Count <= 0)
@@ -346,7 +457,7 @@ namespace DancingTrainer
             }
             if (gestureValues["ForthAndBackProgress_Left"] <= 0.05)
             {
-                if (gestureValues["FootTapping_Left"] >= 0.05 && currentSalsaBeatCounter == 5)
+                if (gestureValues["FootTapping_Left"] >= 0.03 && currentSalsaBeatCounter == 5)
                 {
                     currentSalsaBeatCounter = 6;
                     currentSalsaState = "left tap";
@@ -375,6 +486,21 @@ namespace DancingTrainer
                 {
                     currentSalsaBeatCounter = 3;
                 }
+            }
+        }
+
+        public void Dispose()
+        {
+            vgbFrameReader.Dispose();
+            vgbFrameSource.Dispose();
+        }
+
+        public void ResetTimer(Timer t)
+        {
+            if (t.Enabled)
+            {
+                t.Stop();
+                t.Start();
             }
         }
     }

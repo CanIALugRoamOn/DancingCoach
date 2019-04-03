@@ -932,8 +932,7 @@ namespace DancingTrainer
             }
         }
 
-        
-
+        // never called
         private void MainWindow_Closing1(object sender, CancelEventArgs e)
         {
             try

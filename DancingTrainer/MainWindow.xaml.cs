@@ -7,6 +7,11 @@ using System.Windows.Input;
 using System.Windows.Forms;
 using Deedle;
 using System.Windows.Media;
+using System.Runtime.InteropServices;
+using Microsoft.Speech.Recognition;
+using Microsoft.Kinect;
+using Microsoft.Speech.AudioFormat;
+using System.ComponentModel;
 
 namespace DancingTrainer
 {
@@ -31,16 +36,40 @@ namespace DancingTrainer
         private KinectManager kinMan;
         private SalsaWindow salWin;
 
+        /// <summary>
+        /// Stream for 32b-16b conversion.
+        /// </summary>
+        private KinectAudioStream convertStream = null;
+
+        /// <summary>
+        /// Speech recognition engine using audio data from Kinect.
+        /// </summary>
+        private SpeechRecognitionEngine speechEngine = null;
+
+        private System.Timers.Timer ExperimentTimer = new System.Timers.Timer() { Interval = 60000 };
+
         //[System.ComponentModel.Browsable(false)]
         //public IntPtr Handle { get; }
 
         //[System.ComponentModel.Browsable(false)]
         //public bool InvokeRequired { get; }
-        
+
         public MainWindow()
         {
             InitializeComponent();
-            kw_KinWin.isRecording = false;      
+            kw_KinWin.isRecording = false;
+            ExperimentTimer.Elapsed += ExperimentTimer_Elapsed;
+        }
+
+        private void ExperimentTimer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
+        {
+            try
+            {
+                this.Stop();
+            }
+            catch (Exception)
+            {
+            }
         }
 
         private void Button_Browse_Click(object sender, RoutedEventArgs e)
@@ -102,7 +131,7 @@ namespace DancingTrainer
             {
                 item = new ComboBoxItem();
                 item.Content = temp.Get(key).Get("Song").ToString();
-                
+
                 int beatsPerMinute = Int32.Parse(temp.Get(key).Get("BPM").ToString());
                 if (beatsPerMinute < 90)
                 {
@@ -129,9 +158,10 @@ namespace DancingTrainer
             SetMediaElementAudioSource("music");
             // pass bpm and seconds to the BeatManager
             // get the songs bpm and length in secodns
-            var bpm = dfBaml.Rows.Where(df => df.Value.Get("Song").ToString().Contains(combobox_MusicList.SelectedItem.ToString()))
+            ComboBoxItem item = (ComboBoxItem) combobox_MusicList.SelectedItem;
+            var bpm = dfBaml.Rows.Where(df => df.Value.Get("Song").ToString().Contains(item.Content.ToString()))
                     .Select(df => df.Value.Get("BPM"));
-            var length = dfBaml.Rows.Where(df => df.Value.Get("Song").ToString().Contains(combobox_MusicList.SelectedItem.ToString()))
+            var length = dfBaml.Rows.Where(df => df.Value.Get("Song").ToString().Contains(item.Content.ToString()))
                 .Select(df => df.Value.Get("Length"));
 
             int seconds = Int32.Parse(length.FirstValue().ToString());
@@ -143,11 +173,14 @@ namespace DancingTrainer
             salWin.Closing += SalWin_Closing;
             beatMan.setSalsaWindow(salWin);
             
-            kinMan = new KinectManager(kw_KinWin, beatMan);
+            //kinMan = new KinectManager(kw_KinWin, beatMan);
             img_Play.IsEnabled = true;
 
             button_Load.IsEnabled = false;
             salWin.Show();
+
+            // init speech control
+            //InitializeSpeechControl();
         }
 
         private void SalWin_Closing(object sender, System.ComponentModel.CancelEventArgs e)
@@ -164,7 +197,8 @@ namespace DancingTrainer
 
         public void SetMediaElementAudioSource(string mode)
         {
-            string songSelected = combobox_MusicList.SelectedItem.ToString();
+            ComboBoxItem musicItem = (ComboBoxItem) combobox_MusicList.SelectedItem;
+            string songSelected = musicItem.Content.ToString();
             string path = "";
             Series<int, object> temp;
             if (mode == "music")
@@ -211,6 +245,7 @@ namespace DancingTrainer
 
         private void Play()
         {
+            Console.WriteLine(img_Play.IsEnabled.ToString());
             // for sample data collection of standing and stepping
             InitializePropertyValues();
             medelem_Audioplayer.Play();
@@ -228,7 +263,7 @@ namespace DancingTrainer
                 img_Pause.IsEnabled = true;
                 img_Stop.IsEnabled = true;
 
-                beatMan.CountBeat();
+                beatMan.Play();
                 // start Kinect
 
                 //KM.Play();
@@ -351,6 +386,168 @@ namespace DancingTrainer
             medelem_Audioplayer.Position = ts;
         }
 
-        
+        /// <summary>
+        /// Gets the metadata for the speech recognizer (acoustic model) most suitable to
+        /// process audio from Kinect device.
+        /// </summary>
+        /// <returns>
+        /// RecognizerInfo if found, <code>null</code> otherwise.
+        /// </returns>
+        private static RecognizerInfo TryGetKinectRecognizer()
+        {
+            IEnumerable<RecognizerInfo> recognizers;
+
+            // This is required to catch the case when an expected recognizer is not installed.
+            // By default - the x86 Speech Runtime is always expected. 
+            try
+            {
+                recognizers = SpeechRecognitionEngine.InstalledRecognizers();
+            }
+            catch (COMException)
+            {
+                return null;
+            }
+
+            foreach (RecognizerInfo recognizer in recognizers)
+            {
+                string value;
+                recognizer.AdditionalInfo.TryGetValue("Kinect", out value);
+                if ("True".Equals(value, StringComparison.OrdinalIgnoreCase) && "en-US".Equals(recognizer.Culture.Name, StringComparison.OrdinalIgnoreCase))
+                {
+                    return recognizer;
+                }
+            }
+
+            return null;
+        }
+
+
+        /// <summary>
+        /// Execute initialization tasks.
+        /// </summary>
+        /// <param name="sender">object sending the event</param>
+        /// <param name="e">event arguments</param>
+        private void InitializeSpeechControl()
+        {
+            
+            if (this.kw_KinWin.kinectSensor != null)
+            {
+                // open the sensor
+                if (!this.kw_KinWin.kinectSensor.IsOpen)
+                {
+                    this.kw_KinWin.kinectSensor.Open();
+                }
+
+                // grab the audio stream
+                IReadOnlyList<AudioBeam> audioBeamList = this.kw_KinWin.kinectSensor.AudioSource.AudioBeams;
+                System.IO.Stream audioStream = audioBeamList[0].OpenInputStream();
+
+                // create the convert stream
+                this.convertStream = new KinectAudioStream(audioStream);
+            }
+            else
+            {
+                return;
+            }
+
+            RecognizerInfo ri = TryGetKinectRecognizer();
+
+            if (null != ri)
+            {
+
+                this.speechEngine = new SpeechRecognitionEngine(ri.Id);
+
+                
+                
+                //Use this code to create grammar programmatically rather than from
+                //a grammar file.
+                
+                var speechControlGrammar = new Choices();
+                speechControlGrammar.Add(new SemanticResultValue("play", "PLAY"));
+                speechControlGrammar.Add(new SemanticResultValue("pause", "PAUSE"));
+                speechControlGrammar.Add(new SemanticResultValue("stop", "STOP"));
+                var gb = new GrammarBuilder { Culture = ri.Culture };
+                gb.Append(speechControlGrammar);
+                var g = new Grammar(gb);
+                this.speechEngine.LoadGrammar(g);
+
+                // Create a grammar from grammar definition XML file.
+                //using (var memoryStream = new MemoryStream(Encoding.ASCII.GetBytes(Properties.Resources.SpeechGrammar)))
+                //{
+                //    var g = new Grammar(memoryStream);
+                //    this.speechEngine.LoadGrammar(g);
+                //}
+
+                this.speechEngine.SpeechRecognized += this.SpeechRecognized;
+                //this.speechEngine.SpeechRecognitionRejected += this.SpeechRejected;
+
+                // let the convertStream know speech is going active
+                this.convertStream.SpeechActive = true;
+
+                // For long recognition sessions (a few hours or more), it may be beneficial to turn off adaptation of the acoustic model. 
+                // This will prevent recognition accuracy from degrading over time.
+                ////speechEngine.UpdateRecognizerSetting("AdaptationOn", 0);
+
+                this.speechEngine.SetInputToAudioStream(
+                    this.convertStream, new SpeechAudioFormatInfo(EncodingFormat.Pcm, 16000, 16, 1, 32000, 2, null));
+                this.speechEngine.RecognizeAsync(RecognizeMode.Multiple);
+            }
+        }
+
+        /// <summary>
+        /// Execute un-initialization tasks.
+        /// </summary>
+        /// <param name="sender">object sending the event.</param>
+        /// <param name="e">event arguments.</param>
+        public void DisableSpeechControl()
+        {
+            if (null != this.convertStream)
+            {
+                this.convertStream.SpeechActive = false;
+            }
+
+            if (null != this.speechEngine)
+            {
+                this.speechEngine.SpeechRecognized -= this.SpeechRecognized;
+                //this.speechEngine.SpeechRecognitionRejected -= this.SpeechRejected;
+                this.speechEngine.RecognizeAsyncStop();
+            }
+
+            //if (null != this.kw_KinWin.kinectSensor)
+            //{
+            //    this.kw_KinWin.kinectSensor.Close();
+            //    //this.kw_KinWin.kinectSensor = null;
+            //}
+        }
+
+
+        /// <summary>
+        /// Handler for recognized speech events.
+        /// </summary>
+        /// <param name="sender">object sending the event.</param>
+        /// <param name="e">event arguments.</param>
+        private void SpeechRecognized(object sender, SpeechRecognizedEventArgs e)
+        {
+            // Speech utterance confidence below which we treat speech as if it hadn't been heard
+            const double ConfidenceThreshold = 0.4;
+
+            if (e.Result.Confidence >= ConfidenceThreshold)
+            {
+                switch (e.Result.Semantics.Value.ToString())
+                {
+                    case "PLAY":
+                        Play();
+                        break;
+
+                    case "PAUSE":
+                        Pause();
+                        break;
+
+                    case "STOP":
+                        Stop();
+                        break;
+                }
+            }
+        }
     }
 }

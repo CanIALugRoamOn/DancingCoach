@@ -24,8 +24,8 @@ namespace DancingTrainer
 
         SalsaWindow SW;
         MainWindow MW;
-        public System.Timers.Timer Timer { get; private set; }
-        public System.Timers.Timer ToTheBeatTimer { get; private set; }
+        public Timer BeatTimer { get; private set; }
+        public Timer ToTheBeatTimer { get; private set; }
 
         // total milliseconds past
         public double millisecondsPast = 0;
@@ -33,6 +33,7 @@ namespace DancingTrainer
         public Stopwatch StopWatch { get; set; } = new Stopwatch();
         public double timerStopwatchOffset;
         public double totalDuration;
+        bool isRunning = false;
 
         public SalsaBeatManager(MainWindow mw, int bpm, int length)
         {
@@ -42,7 +43,16 @@ namespace DancingTrainer
             totalBeats = (int)(length * (BPM / 60f));
             //Console.WriteLine(totalBeats);
             MW = mw;
-         }
+
+            // init beat timer
+            BeatTimer = new Timer
+            {
+                Interval = MSPB,
+                AutoReset = true
+            };
+            BeatTimer.Elapsed += Timer_Elapsed;
+            
+        }
 
         public void setSalsaWindow(SalsaWindow sw)
         {
@@ -57,45 +67,53 @@ namespace DancingTrainer
             {
                 MW.label_BeatCounter.Content = contentArray[0];
                 SW.label_BeatCounter.Content = contentArray[0];
-                SW.ShowSteps(BeatCounter%8);               
+                SW.ShowSteps((BeatCounter % 8) + 1);
             };
             //Console.WriteLine("Beat: " + beatCounter % 8);
             //DispatcherOperation test = MW.label_BeatCounter.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Normal, woui, new string[] { content });
             SW.label_BeatCounter.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Normal, woui, new string[] { content });
         }
 
-        public void CountBeat()
+        public void Play()
         {
-            BeatCounter = 1;
-            if (SW.mode == "normal")
+            if (isRunning)
             {
-                WriteBeatCounterLabel((BeatCounter % 8).ToString());
+                BeatTimer.Elapsed += Timer_Elapsed;
+                this.StopWatch.Start();
             }
-            
-            Timer = new System.Timers.Timer();
-            // human reaction is 250ms on average
-            // give the user time to react
-            Console.WriteLine(MSPB);
-            Timer.Interval = MSPB;
-            Timer.Elapsed += Timer_Elapsed;
-            Timer.AutoReset = true;
+            else
+            {
+                //BeatCounter = 1;
+                if (SW.mode == "normal")
+                {
+                    BeatCounter = 0;
+                    WriteBeatCounterLabel((BeatCounter % 8 + 1).ToString());
+                }
 
-            Stopwatch s = new Stopwatch();
-            s.Start();
-            Timer.Start();
-            //toTheBeatTimer.Start();
-            s.Stop();
-            timerStopwatchOffset = s.Elapsed.TotalMilliseconds;
-            StopWatch.Start();
+                try
+                {
+                    Stopwatch s = new Stopwatch();
+                    s.Start();
+                    BeatTimer.Start();
+                    s.Stop();
+                    StopWatch.Start();
+                    timerStopwatchOffset = s.Elapsed.TotalMilliseconds;
+                    isRunning = true;
+                }
+                catch (Exception e)
+                {
+                    throw e;
+                }
+            }
         }
 
         private void Timer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
         {
+            BeatCounter++;
             if (SW.mode == "normal")
             {
-                WriteBeatCounterLabel((BeatCounter % 8).ToString());
-            }
-            BeatCounter++;
+                WriteBeatCounterLabel((BeatCounter%8+1).ToString());
+            }           
             millisecondsPast += MSPB;
             if (BeatCounter >= totalBeats)
             {
@@ -104,21 +122,23 @@ namespace DancingTrainer
         }
 
         public void Pause()
-        {            
+        {
             // pause the counter
-            Timer.Elapsed -= Timer_Elapsed;
+            BeatTimer.Elapsed -= Timer_Elapsed;
             StopWatch.Stop();
         }
 
         public void Stop()
         {
-            Timer.Stop();
+            BeatTimer.Stop();
             totalDuration = StopWatch.Elapsed.TotalMilliseconds;
             StopWatch.Reset();
             // reset the counter and the milli seconds past
-            BeatCounter = 0;
+            BeatCounter = 7;
             millisecondsPast = 0;
             WriteBeatCounterLabel("-");
+            SW.ShowSteps(0);
+            isRunning = false;
         }
 
         private void InitToTheBeatTimer()
@@ -128,6 +148,12 @@ namespace DancingTrainer
             // or can not distinguish a delay
             ToTheBeatTimer.Interval = 100;
             ToTheBeatTimer.AutoReset = false;
+        }
+
+        public void Dispose()
+        {
+            BeatTimer.Dispose();
+            ToTheBeatTimer.Dispose();            
         }
     }
 }

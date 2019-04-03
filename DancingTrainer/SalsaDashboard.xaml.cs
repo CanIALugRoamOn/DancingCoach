@@ -71,7 +71,7 @@ namespace DancingTrainer
                 case "Look straight":
                     AddRectangleToTimeline(timeline_Focus, recognition_start, displayed_start, recognition_end, total_duration);
                     break;
-                case "Follow Beat":
+                case "Reset Dancing":
                     AddRectangleToTimeline(timeline_OffTheBeat, recognition_start, displayed_start, recognition_end, total_duration);
                     break;
                 case "Move Body":
@@ -82,12 +82,23 @@ namespace DancingTrainer
 
         private void AddRectangleToTimeline(Grid timeline, double rec_start, double dis_start, double rec_end, double total_duration)
         {
-            int recognition_start = Convert.ToInt32(timeline.Width * (rec_start / total_duration));
+            rec_start = rec_start / 1000;
+            dis_start = dis_start / 1000;
+            rec_end = rec_end / 1000;
+            total_duration = total_duration / 1000;
+            int recognition_start = 0;
+
+            double temp = timeline.Width * (rec_start / total_duration);
+            //recognition_start = Convert.ToInt32(timeline.Width * (rec_start / total_duration));
+            Console.WriteLine("Heureka "  + temp.ToString());
+            recognition_start = Convert.ToInt32(temp);
+                      
 
             // never displayed
             if (rec_start >=  0 & double.IsNaN(dis_start) & rec_end >= 0)
             {
-                int recognition_end = Convert.ToInt32(timeline.Width * (rec_end / total_duration));
+                temp = timeline.Width * (rec_end / total_duration);
+                int recognition_end = Convert.ToInt32(temp);
                 timeline.Children.Add(new Rectangle()
                 {
                     HorizontalAlignment = System.Windows.HorizontalAlignment.Left,
@@ -178,15 +189,18 @@ namespace DancingTrainer
 
             tmp.Axes.Add(new LinearAxis { Position = AxisPosition.Bottom, Title = "Milliseconds" });
             
-            var ls2 = new LineSeries() { Title = jobj["BPM"].ToString() + " BPM" };
+            var ls2 = new LineSeries() { Title = jobj["BPM"].ToString() + " Beats Per Minute" };
             int MSPB = (int)(60f / (double)jobj["BPM"] * 1000f);
             for (int i = 0; i < (double)jobj["TotalDuration"] + MSPB; i+= MSPB)
             {
                 int beat = (i / MSPB % 8) + 1;
-                Console.WriteLine(i / MSPB % 8);
-                ls2.Points.Add(new DataPoint(i, beat));
-                ls2.Points.Add(new DataPoint(i+MSPB, beat));
-
+                //Console.WriteLine(i / MSPB % 8);
+                //try
+                //{
+                    ls2.Points.Add(new DataPoint(i, beat));
+                    ls2.Points.Add(new DataPoint(i + MSPB, beat));
+                //}
+                //catch (Exception){break;}
             }
             tmp.Series.Add(ls2);
             //tmp.Axes.Add(new LinearAxis { Position = AxisPosition.Bottom, Title = jobj["BPM"].ToString() });

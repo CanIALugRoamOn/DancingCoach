@@ -11,9 +11,9 @@ namespace DancingTrainer
     interface IBeatManager
     {
         float MSPB { get; set; }
-        int BeatCounter { get; set; }
+        //int BeatCounter { get; set; }
         Stopwatch StopWatch { get; set; }
-        void CountBeat();
+        void Play();
         void Pause();
         void Stop();
 
