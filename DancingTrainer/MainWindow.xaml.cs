@@ -82,14 +82,16 @@ namespace DancingTrainer
             // Open window to browse to BAML directory
             FolderBrowserDialog fbd = new FolderBrowserDialog();
             fbd.SelectedPath = "C:\\Users\\roman\\Documents\\Masterthesis\\BeatAnnotatedMusicLibrary";
+            // browse is not needed
+            // work with relative paths
+            // problem with root path in SetMediaElementAudioSource
             if (fbd.ShowDialog() == System.Windows.Forms.DialogResult.OK)
             {
                 rootPath = fbd.SelectedPath + @"\";
                 textbox_bamlDirectory.Text = rootPath;
 
-                // read the dataframe
-                
-                dfBaml = Deedle.Frame.ReadCsv(rootPath + "baml.csv", separators: "\t");
+                // read the dataframe              
+                //dfBaml = Deedle.Frame.ReadCsv(rootPath + "baml.csv", separators: "\t");
 
                 // relative pathing is weird when using the .exe
                 dfBaml = Deedle.Frame.ReadCsv(@"baml\baml.csv", separators: "\t");

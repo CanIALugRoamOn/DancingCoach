@@ -5,6 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:KinectReader"
         mc:Ignorable="d">
+    <!-- -->       
     <Grid Name="MainCanvas" Margin="0,0,0,0">
         <Image x:Name="myImage" Width="1000" Height="600" />
 
