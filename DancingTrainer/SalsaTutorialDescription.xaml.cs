@@ -9,16 +9,33 @@ namespace DancingTrainer
     /// </summary>
     public partial class SalsaTutorialDescription : Window
     {
+        /// <summary>
+        /// Index of the content.
+        /// </summary>
         int tutorialIndex = 0;
+
+        /// <summary>
+        /// Maximum number of contents.
+        /// </summary>
         int maxIdx = 4;
+
+        /// <summary>
+        /// Minimum number of contents.
+        /// </summary>
         int minIdx = 0;
 
+        /// <summary>
+        /// Constructor.
+        /// </summary>
         public SalsaTutorialDescription()
         {
             InitializeComponent();
             ShowContent();
         }
 
+        /// <summary>
+        /// Shows the content.
+        /// </summary>
         private void ShowContent()
         {
             switch (tutorialIndex)
@@ -72,6 +89,11 @@ namespace DancingTrainer
             }
         }
 
+        /// <summary>
+        /// Event to go to previous content.
+        /// </summary>
+        /// <param name="sender">object</param>
+        /// <param name="e">RoutedEventArgs</param>
         private void Button_Back_Click(object sender, RoutedEventArgs e)
         {
             tutorialIndex--;
@@ -86,6 +108,11 @@ namespace DancingTrainer
             ShowContent();
         }
 
+        /// <summary>
+        /// Event to go to next content.
+        /// </summary>
+        /// <param name="sender">object</param>
+        /// <param name="e">RoutedEventArgs</param>
         private void Button_Next_Click(object sender, RoutedEventArgs e)
         {
             tutorialIndex++;
@@ -100,6 +127,11 @@ namespace DancingTrainer
             ShowContent();
         }
 
+        /// <summary>
+        /// Event to close the window.
+        /// </summary>
+        /// <param name="sender">object</param>
+        /// <param name="e">RoutedEventArgs</param>
         private void Button_Close_Click(object sender, RoutedEventArgs e)
         {
             this.Close();

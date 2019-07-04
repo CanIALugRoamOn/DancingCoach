@@ -6,7 +6,7 @@
         xmlns:oxy="clr-namespace:OxyPlot.Wpf;assembly=OxyPlot.Wpf" 
         mc:Ignorable="d"
         Title="Timeline" Height="600" Width="800">
-    
+
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
@@ -31,12 +31,18 @@
         <Label Name="label_OffTheBeat" Grid.Row="2" Grid.Column="0" Content="To the Beat" HorizontalAlignment="Center" VerticalAlignment="Center"/>
         <Grid x:Name="timeline_OffTheBeat" Width="600" Margin="10,0,10,0" Grid.Row="2" Grid.Column="1" HorizontalAlignment="Stretch" Height="30" VerticalAlignment="Center" Background="Green">
         </Grid>
-        
+
         <Label Name="label_MoveYourBody" Grid.Row="3" Grid.Column="0" Content="Body Moved" HorizontalAlignment="Center" VerticalAlignment="Center"/>
         <Grid x:Name="timeline_MoveYourBody" Width="600" Margin="10,0,10,0" Grid.Row="3" Grid.Column="1" HorizontalAlignment="Stretch" Height="30" VerticalAlignment="Center" Background="Green">
         </Grid>
 
-        <TextBlock Grid.Column="2" Grid.Row="1" Grid.RowSpan="3" TextWrapping="Wrap" Text="Green: No Feedback; Light Gray: Feedback Recognized; Gray: Feedback Displayed" VerticalAlignment="Top" Margin="0,0,0,0"/>
+        <TextBlock Grid.Column="2" Grid.Row="1" TextWrapping="Wrap" Text="Green: Good" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="0,0,0,0"/>
+        <TextBlock Grid.Column="2" Grid.Row="2" TextWrapping="Wrap" Text="Light Gray: Feedback Recognized" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="0,0,0,0"/>
+        <TextBlock Grid.Column="2" Grid.Row="3" TextWrapping="Wrap" Text="Dark Gray: Feedback Displayed" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="0,0,0,0"/>
+
+        <TextBlock Grid.Column="2" Grid.Row="4" TextWrapping="Wrap" Text="Left Mouse: Select" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="0,118,0,192.4"/>
+        <TextBlock Grid.Column="2" Grid.Row="4" TextWrapping="Wrap" Text="Right Mouse: Drag" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="0,0,0,0"/>
+        <TextBlock Grid.Column="2" Grid.Row="4" TextWrapping="Wrap" Text="Mouse Wheel: Zoom" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="0,192,0,118.4"/>
 
         <oxy:PlotView x:Name="plot_SalsaSteps" Grid.Row="5" Grid.Column="1"  Model="{Binding Path=Model, UpdateSourceTrigger=PropertyChanged}" Background="White" />
     </Grid>

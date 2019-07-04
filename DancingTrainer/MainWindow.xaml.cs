@@ -11,29 +11,40 @@ using System.Runtime.InteropServices;
 using Microsoft.Speech.Recognition;
 using Microsoft.Kinect;
 using Microsoft.Speech.AudioFormat;
-using System.ComponentModel;
 
 namespace DancingTrainer
 {
-    /// <summary>
-    /// Interaction logic for MainWindow.xaml
-    /// </summary>
     public partial class MainWindow : Window
     {
 
-        // root path to the beat annotated music library (BAML)
+        /// <summary>
+        /// Root path to the beat annotated music library (BAML).
+        /// </summary>
         private string rootPath = "";
 
-        // DataFrame for the songs in the BAML
+        /// <summary>
+        /// DataFrame for the songs in the BAML.
+        /// </summary> 
         private Frame<int, string> dfBaml;
 
-        // List of strings with all genres available
+        /// <summary>
+        /// List of strings with all avaiblable genres.
+        /// </summary>
         private List<string> genres = new List<string>();
 
+        /// <summary>
+        /// Starting time of the dance session.
+        /// </summary>
         private DateTime sessionStart;
 
-        public SalsaBeatManager beatMan;
-        private KinectManager kinMan;
+        /// <summary>
+        /// Reference to the beat manager.
+        /// </summary>
+        private SalsaBeatManager beatMan;
+
+        /// <summary>
+        /// Reference to the salsa window.
+        /// </summary>
         private SalsaWindow salWin;
 
         /// <summary>
@@ -46,32 +57,26 @@ namespace DancingTrainer
         /// </summary>
         private SpeechRecognitionEngine speechEngine = null;
 
-        private System.Timers.Timer ExperimentTimer = new System.Timers.Timer() { Interval = 60000 };
+        /// <summary>
+        /// Delegate to be able to write on the UI.
+        /// </summary>
+        /// <param name="s">String Array</param>
+        delegate void WriteOnUI(string[] s);
 
-        //[System.ComponentModel.Browsable(false)]
-        //public IntPtr Handle { get; }
-
-        //[System.ComponentModel.Browsable(false)]
-        //public bool InvokeRequired { get; }
-
+        /// <summary>
+        /// Initializes the main window..
+        /// </summary>
         public MainWindow()
         {
             InitializeComponent();
             kw_KinWin.isRecording = false;
-            ExperimentTimer.Elapsed += ExperimentTimer_Elapsed;
         }
 
-        private void ExperimentTimer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
-        {
-            try
-            {
-                this.Stop();
-            }
-            catch (Exception)
-            {
-            }
-        }
-
+        /// <summary>
+        /// Click to browse to the BAML.
+        /// </summary>
+        /// <param name="sender">Object.</param>
+        /// <param name="e">RoutedEventArgs</param>
         private void Button_Browse_Click(object sender, RoutedEventArgs e)
         {           
             // Open window to browse to BAML directory
@@ -95,6 +100,9 @@ namespace DancingTrainer
             }           
         }
 
+        /// <summary>
+        /// Sets the genre when the BAML was loaded.
+        /// </summary>
         private void SetGenres()
         {
             // select all genres
@@ -111,12 +119,20 @@ namespace DancingTrainer
             combobox_GenreList.IsEnabled = true;
         }
 
+        /// <summary>
+        /// Load the music when the genre was changed in the respective ComboBox.
+        /// </summary>
+        /// <param name="sender">Object.</param>
+        /// <param name="e">SelectionChangedEventArgs</param>
         private void Combobox_GenreList_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             // now that the genre is set, set the songs
             LoadMusicList();
         }
 
+        /// <summary>
+        /// Loads the music into the respective ComboBox using the previously selected genre.
+        /// </summary>
         private void LoadMusicList()
         {
             // empty the combobox because of previousely setted items
@@ -129,8 +145,10 @@ namespace DancingTrainer
             ComboBoxItem item;
             foreach (int key in temp.Keys)
             {
-                item = new ComboBoxItem();
-                item.Content = temp.Get(key).Get("Song").ToString();
+                item = new ComboBoxItem
+                {
+                    Content = temp.Get(key).Get("Song").ToString()
+                };
 
                 int beatsPerMinute = Int32.Parse(temp.Get(key).Get("BPM").ToString());
                 if (beatsPerMinute < 90)
@@ -146,13 +164,16 @@ namespace DancingTrainer
                     item.Foreground = Brushes.Red;
                 }
                 combobox_MusicList.Items.Add(item);
-                //combobox_MusicList.Items.Add(temp.Get(key).Get("Song"));
             }
             
             combobox_MusicList.SelectedIndex = 0;
         }
 
-
+        /// <summary>
+        /// Load a dancing trainer component, derived by the selected genre. Currently only Salsa.
+        /// </summary>
+        /// <param name="sender">object</param>
+        /// <param name="e">RoutedEventArgs</param>
         private void Button_Load_Click(object sender, RoutedEventArgs e)
         {
             SetMediaElementAudioSource("music");
@@ -165,29 +186,50 @@ namespace DancingTrainer
                 .Select(df => df.Value.Get("Length"));
 
             int seconds = Int32.Parse(length.FirstValue().ToString());
+
+            // TOTEST
+            // main memory stays the same if a dancing trainer component is closed
+            // therefore it rises on every new load
+            // maybe it is better to use setter and getter such that the new object does not instanciate every time
+            // maybe use object is null and instanciate only on first load
+
             // this is passed such that the class can write back to the UI
             beatMan = new SalsaBeatManager(this, (int)bpm.FirstValue(), seconds);
 
             // Load (Salsa) Dancing Trainer component
+            //if (salWin is null)
+            //{
+            //    // instanciate new object
+            //}
+            //else
+            //{
+            //    // reset object and show it
+            //    // salWin.Show();
+            //}
             salWin = new SalsaWindow(this, kw_KinWin, beatMan);
             salWin.Closing += SalWin_Closing;
-            beatMan.setSalsaWindow(salWin);
+            beatMan.SetSalsaWindow(salWin);
             
-            //kinMan = new KinectManager(kw_KinWin, beatMan);
             img_Play.IsEnabled = true;
 
             button_Load.IsEnabled = false;
             salWin.Show();
 
             // init speech control
-            //InitializeSpeechControl();
+            // sensitive, care for demonstration
+            // InitializeSpeechControl();
         }
 
+        /// <summary>
+        /// Event to stop the music when the salsa window is closes. 
+        /// </summary>
+        /// <param name="sender">objects</param>
+        /// <param name="e">CancelEventArgs</param>
         private void SalWin_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
             try
             {
-                this.Stop();
+                this.Stop();             
             }
             catch (Exception)
             {
@@ -195,6 +237,10 @@ namespace DancingTrainer
             }           
         }
 
+        /// <summary>
+        /// Sets the audio source of the media element.
+        /// </summary>
+        /// <param name="mode">String to choose the audio source with music, beat or music with beat.</param>
         public void SetMediaElementAudioSource(string mode)
         {
             ComboBoxItem musicItem = (ComboBoxItem) combobox_MusicList.SelectedItem;
@@ -225,11 +271,21 @@ namespace DancingTrainer
             Console.WriteLine("btn_Start: Music has been loaded.");
         }
 
+        /// <summary>
+        /// Event to set the maxiumum of the slider to the duration of the audio source.
+        /// </summary>
+        /// <param name="sender">Object</param>
+        /// <param name="e">RoutedEventArgs</param>
         private void Medelem_Audioplayer_MediaOpened(object sender, RoutedEventArgs e)
         {
             slider_Time.Maximum = medelem_Audioplayer.NaturalDuration.TimeSpan.TotalMilliseconds;
         }
 
+        /// <summary>
+        /// Event to stop when the media element has ended.
+        /// </summary>
+        /// <param name="sender">Object</param>
+        /// <param name="e">RoutedEventArgs</param>
         private void Medelem_Audioplayer_MediaEnded(object sender, RoutedEventArgs e)
         {
             medelem_Audioplayer.Stop();
@@ -243,10 +299,11 @@ namespace DancingTrainer
             }
         }
 
+        /// <summary>
+        /// Plays the music and if possible start the accoring dancing trainer component.
+        /// </summary>
         private void Play()
         {
-            Console.WriteLine(img_Play.IsEnabled.ToString());
-            // for sample data collection of standing and stepping
             InitializePropertyValues();
             medelem_Audioplayer.Play();
             // disable load button
@@ -264,100 +321,71 @@ namespace DancingTrainer
                 img_Stop.IsEnabled = true;
 
                 beatMan.Play();
-                // start Kinect
-
-                //KM.Play();
                 salWin.Play();
             }
         }
+
+        /// <summary>
+        /// Pauses the music and if possible start the accoring dancing trainer component.
+        /// </summary>
         private void Pause()
         {
             medelem_Audioplayer.Pause();
             kw_KinWin.isRecording = false;
             beatMan.Pause();
             salWin.Pause();
-            //SW.Stop();
-            //SW.SessionEnd = DateTime.Now;
-            // save recording?
             img_Play.IsEnabled = true;
             img_Pause.IsEnabled = false;
             img_Stop.IsEnabled = true;
         }
 
+        /// <summary>
+        /// Stops the music and if possible start the accoring dancing trainer component.
+        /// </summary>
         private void Stop()
         {
             medelem_Audioplayer.Stop();
             kw_KinWin.isRecording = false;
             beatMan.Stop();
-            //KM.Stop();
             salWin.Stop();
             img_Play.IsEnabled = true;
             img_Pause.IsEnabled = true;
             img_Stop.IsEnabled = false;
-            // enable load button
-            //button_Load.IsEnabled = true;
         }
 
+        /// <summary>
+        /// Event to start play when the play image is clicked.
+        /// </summary>
+        /// <param name="sender">Object</param>
+        /// <param name="e">MouseButtonEventArgs</param>
         private void Img_Play_MouseDown(object sender, MouseButtonEventArgs e)
         {
             this.Play();
-            //// for sample data collection of standing and stepping
-            //InitializePropertyValues();
-            //medelem_Audioplayer.Play();
-            //// disable load button
-            //button_Load.IsEnabled = false;
-            //// unfortunately audio plays only on second click.
-            //// so start the beat counting only if there is an audio
-            //if (medelem_Audioplayer.HasAudio)
-            //{
-            //    sessionStart = DateTime.Now;
-            //    SW.SetSessionStart(sessionStart);
-            //    Console.WriteLine("Med Elem has audio");
-            //    kw_KinectWindow.isRecording = true;
-            //    img_Play.IsEnabled = false;
-            //    img_Pause.IsEnabled = true;
-            //    img_Stop.IsEnabled = true;
-                
-            //    BM.CountBeat();
-            //    // start Kinect
-                
-            //    //KM.Play();
-            //    SW.Play();
-            //}
         }
 
-        delegate void WriteOnUI(string[] s);
-
+        /// <summary>
+        /// Event to pause when the pause image is clicked.
+        /// </summary>
+        /// <param name="sender">Object</param>
+        /// <param name="e">MouseButtonEventArgs</param>
         private void Img_Pause_MouseDown(object sender, MouseButtonEventArgs e)
         {
             this.Pause();
-            //medelem_Audioplayer.Pause();
-            //kw_KinectWindow.isRecording = false;
-            //BM.Pause();
-            //SW.Pause();
-            ////SW.Stop();
-            ////SW.SessionEnd = DateTime.Now;
-            //// save recording?
-            //img_Play.IsEnabled = true;
-            //img_Pause.IsEnabled = false;
-            //img_Stop.IsEnabled = true;           
         }
 
+        /// <summary>
+        /// Event to stop when the stop image is clicked.
+        /// </summary>
+        /// <param name="sender">Object</param>
+        /// <param name="e">MouseButtonEventArgs</param>
         private void Img_Stop_MouseDown(object sender, MouseButtonEventArgs e)
         {
             this.Stop();
-            //medelem_Audioplayer.Stop();
-            //kw_KinectWindow.isRecording = false;
-            //BM.Stop();
-            ////KM.Stop();
-            //SW.Stop();
-            //img_Play.IsEnabled = true;
-            //img_Pause.IsEnabled = true;
-            //img_Stop.IsEnabled = false;
-            //// enable load button
-            //button_Load.IsEnabled = true;
         }
 
+        /// <summary>
+        /// Initializes values for the MediaElement.
+        /// </summary>
         void InitializePropertyValues()
         {
             // Set the media's starting Volume and SpeedRatio to the current value of the
@@ -366,16 +394,31 @@ namespace DancingTrainer
             medelem_Audioplayer.SpeedRatio = (double)slider_Speed.Value;
         }
 
+        /// <summary>
+        /// Event to update the volume of the MediaElement.
+        /// </summary>
+        /// <param name="sender">Object</param>
+        /// <param name="args">RoutedPropertyChangedEventArgs</param>
         private void Slider_Volume_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> args)
         {
             medelem_Audioplayer.Volume = (double)slider_Volume.Value;
         }
 
+        /// <summary>
+        /// Event to update the speed ratio of the MediaElement.
+        /// </summary>
+        /// <param name="sender">Object</param>
+        /// <param name="args">RoutedPropertyChangedEventArgs</param>
         private void Slider_Speed_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> args)
         {
             medelem_Audioplayer.SpeedRatio = (double)slider_Speed.Value;
         }
 
+        /// <summary>
+        /// Event to update the slider value of the MediaElement.
+        /// </summary>
+        /// <param name="sender">Object</param>
+        /// <param name="args">RoutedPropertyChangedEventArgs</param>
         private void Slider_Time_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             int SliderValue = (int)slider_Time.Value;
@@ -390,9 +433,7 @@ namespace DancingTrainer
         /// Gets the metadata for the speech recognizer (acoustic model) most suitable to
         /// process audio from Kinect device.
         /// </summary>
-        /// <returns>
-        /// RecognizerInfo if found, <code>null</code> otherwise.
-        /// </returns>
+        /// <returns>RecognizerInfo</returns>
         private static RecognizerInfo TryGetKinectRecognizer()
         {
             IEnumerable<RecognizerInfo> recognizers;
@@ -423,10 +464,8 @@ namespace DancingTrainer
 
 
         /// <summary>
-        /// Execute initialization tasks.
+        /// Initializes the speech control for speech recogntion.
         /// </summary>
-        /// <param name="sender">object sending the event</param>
-        /// <param name="e">event arguments</param>
         private void InitializeSpeechControl()
         {
             
@@ -456,9 +495,7 @@ namespace DancingTrainer
             {
 
                 this.speechEngine = new SpeechRecognitionEngine(ri.Id);
-
-                
-                
+               
                 //Use this code to create grammar programmatically rather than from
                 //a grammar file.
                 
@@ -495,10 +532,8 @@ namespace DancingTrainer
         }
 
         /// <summary>
-        /// Execute un-initialization tasks.
+        /// Disable the speech control
         /// </summary>
-        /// <param name="sender">object sending the event.</param>
-        /// <param name="e">event arguments.</param>
         public void DisableSpeechControl()
         {
             if (null != this.convertStream)
@@ -509,23 +544,16 @@ namespace DancingTrainer
             if (null != this.speechEngine)
             {
                 this.speechEngine.SpeechRecognized -= this.SpeechRecognized;
-                //this.speechEngine.SpeechRecognitionRejected -= this.SpeechRejected;
                 this.speechEngine.RecognizeAsyncStop();
             }
-
-            //if (null != this.kw_KinWin.kinectSensor)
-            //{
-            //    this.kw_KinWin.kinectSensor.Close();
-            //    //this.kw_KinWin.kinectSensor = null;
-            //}
         }
 
 
         /// <summary>
-        /// Handler for recognized speech events.
+        /// Event to recognize speech.
         /// </summary>
-        /// <param name="sender">object sending the event.</param>
-        /// <param name="e">event arguments.</param>
+        /// <param name="sender">Object</param>
+        /// <param name="e">SpeechRecognizedEventArgs</param>
         private void SpeechRecognized(object sender, SpeechRecognizedEventArgs e)
         {
             // Speech utterance confidence below which we treat speech as if it hadn't been heard

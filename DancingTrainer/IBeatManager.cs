@@ -10,11 +10,29 @@ namespace DancingTrainer
 {
     interface IBeatManager
     {
+        /// <summary>
+        /// Milliseconds per beat is the intervall for a Timer.
+        /// </summary>
         float MSPB { get; set; }
-        //int BeatCounter { get; set; }
+
+        /// <summary>
+        /// Stopwatch to measure time.
+        /// </summary>
         Stopwatch StopWatch { get; set; }
+
+        /// <summary>
+        /// Starts the beat.
+        /// </summary>
         void Play();
+
+        /// <summary>
+        /// Pauses the beat.
+        /// </summary>
         void Pause();
+
+        /// <summary>
+        /// Stops the beat.
+        /// </summary>
         void Stop();
 
     }

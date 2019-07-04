@@ -5,7 +5,6 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.Linq;
 using System.Timers;
 using System.Windows;
@@ -15,10 +14,6 @@ using System.Windows.Media.Imaging;
 using System.Windows.Media.Media3D;
 using System.IO;
 using System.Threading.Tasks;
-using System.Runtime.InteropServices;
-using Accord.Video.FFMPEG;
-using System.Drawing.Imaging;
-using System.Diagnostics;
 using System.Windows.Media;
 
 namespace DancingTrainer
@@ -28,27 +23,74 @@ namespace DancingTrainer
     /// </summary>
     public partial class SalsaWindow : Window, IDancingTrainerComponent
     {
+        /// <summary>
+        /// Reference to KinectWindow
+        /// </summary>
+        private KinectWindow kinWin;
 
-        public KinectWindow kinWin;
+        /// <summary>
+        /// Reference to MainWindow
+        /// </summary>
         MainWindow mainWin;
+
+        /// <summary>
+        /// Reference to SalsaBeatManager
+        /// </summary>
         SalsaBeatManager beatMan;
 
-        // schedule the freedback during runtime
+        /// <summary>
+        /// Array of the feedback.
+        /// </summary>
         public Feedback[] FeedbackArray { get; set; }
 
+        /// <summary>
+        /// Timer to select feedback that gets displayed.
+        /// </summary>
         private System.Timers.Timer feedbackTimer;
+
+        /// <summary>
+        /// Current feedback counter.
+        /// </summary>
         private int currentFeedbackCounter = 0;
 
-        // define all your feedback
+        /// <summary>
+        /// Smile Feedback.
+        /// </summary>
         Feedback smile;
+
+        /// <summary>
+        /// Off beat or reset dancing feedback
+        /// </summary>
         Feedback offbeat;
+
+        /// <summary>
+        /// focus or look straight feedback
+        /// </summary>
         Feedback focus;
+
+        /// <summary>
+        /// Move body feedback.
+        /// </summary>
         Feedback movebody;
 
+        /// <summary>
+        /// Session Start
+        /// </summary>
         public DateTime SessionStart { get; set; }
+
+        /// <summary>
+        /// Array of the bodies.
+        /// </summary>
         public Body[] Bodies { get; private set; }
 
+        /// <summary>
+        /// List for gestures per body
+        /// </summary>
         private List<GestureDetectorSalsa> gestureDetectorSalsa;
+
+        /// <summary>
+        /// bool if applicatio is running.
+        /// </summary>
         public bool isRunning = false;
 
         // needed ???
@@ -56,32 +98,61 @@ namespace DancingTrainer
         List<string> stanceData = new List<string>();
         public List<string> gestureValuesList = new List<string>();
 
+        /// <summary>
+        /// Memorize previous joint positions.
+        /// </summary>
         Dictionary<JointType, CameraSpacePoint> prevJointPositions = new Dictionary<JointType, CameraSpacePoint>();
+
+        /// <summary>
+        /// Dictionary for the motion angle.s
+        /// </summary>
         Dictionary<JointType, double> motionAngles = new Dictionary<JointType, double>();
+
+        /// <summary>
+        /// reference vector for the motion angles
+        /// </summary>
         Vector3D referenceMovement = new Vector3D(0.0, 0.0, -1.0);
-        public string mode = "normal";
-        public List<ImageSource> Video { get; set; } = new List<ImageSource>();
-        //private VideoFileWriter vfw = new VideoFileWriter();
-        public Task Record { get; set; }
-        public WriteableBitmap ColorBitmap { get; private set; }
 
+        /// <summary>
+        /// default mode.
+        /// </summary>
+        public string mode = "normal";       
+
+        /// <summary>
+        /// List of the plotted salsa steps.
+        /// </summary>
         private List<(double, int)> plotSalsaSteps = new List<(double, int)>();
-        public static int imageCounter = 0;
 
+        /// <summary>
+        /// Delegate to set image source on UI.
+        /// </summary>
+        /// <param name="b">BitmapImage</param>
+        delegate void SetImageSourceDelegate(BitmapImage b);
+
+        /// <summary>
+        /// Delegate to set label content
+        /// </summary>
+        /// <param name="s">string</param>
+        delegate void SetLabelContentDelegate(string s);
+
+        /// <summary>
+        /// Constructor.
+        /// </summary>
+        /// <param name="mw">MainWindow</param>
+        /// <param name="kw">KinectWindow</param>
+        /// <param name="bm">SalsaBeatManager</param>
         public SalsaWindow(MainWindow mw, KinectWindow kw, SalsaBeatManager bm)
         {
             InitializeComponent();
             label_BeatCounter.Content = "-";
             mode = "normal";
             kinWin = kw;
-            //kinWin.colorFrameReader.FrameArrived += ColorFrameReader_FrameArrived;
             System.IO.Directory.CreateDirectory("temp");
 
             mainWin = mw;
             beatMan = bm;
             ComboBoxItem musicItem = (ComboBoxItem)mainWin.combobox_MusicList.SelectedItem;
             this.Title = "Salsa: " + musicItem.Content.ToString();
-            //BM.timer.Elapsed += Timer_Elapsed;
 
             feedbackTimer = new System.Timers.Timer { Interval = 3000 };
             feedbackTimer.Elapsed += FeedbackTimer_Elapsed;
@@ -106,155 +177,16 @@ namespace DancingTrainer
                 gestureDetectorSalsa.Add(new GestureDetectorSalsa(this, kinWin.kinectSensor, beatMan));
             }
 
-            // create the colorFrameDescription from the ColorFrameSource using Bgra format
-            FrameDescription colorFrameDescription = kinWin.kinectSensor.ColorFrameSource.CreateFrameDescription(ColorImageFormat.Bgra);
-            ColorBitmap = new WriteableBitmap(colorFrameDescription.Width, colorFrameDescription.Height, 96.0, 96.0, System.Windows.Media.PixelFormats.Bgr32, null);
             this.Closing += SalsaWindow_Closing;
         }
 
-        private void ColorFrameReader_FrameArrived(object sender, ColorFrameArrivedEventArgs e)
-        {
-            //if (kinWin.isRecording)
-            //{
-            //    Video.Add(kinWin.ImageSource);
-            //}
-            if (!kinWin.isRecording)
-            {
-                return;
-            }
-            using (ColorFrame colorFrame = e.FrameReference.AcquireFrame())
-            {
-                if (colorFrame != null)
-                {
-                    FrameDescription colorFrameDescription = colorFrame.FrameDescription;
-                    
-                    using (Bitmap bm = new Bitmap(colorFrameDescription.Width, colorFrameDescription.Height))
-                    {
-                        colorFrame.CopyConvertedFrameDataToIntPtr(
-                                bm.GetHbitmap(),
-                                (uint)(colorFrameDescription.Width * colorFrameDescription.Height * 4),
-                                ColorImageFormat.Bgra);
-                        // VideoFileWriter.write(bm);
-                    }
-
-                    //this.ColorBitmap.Save(@"temp\image" + colorFrame.RelativeTime.TotalMilliseconds.ToString() + ".jpeg");
-                    string id = colorFrame.RelativeTime.TotalMilliseconds.ToString();
-                    Task.Factory.StartNew(() => this.ColorBitmap.Save(@"temp\image" + id + ".jpeg"));
-                }
-            }
-
-
-            //ColorFrame cframe = e.FrameReference.AcquireFrame();
-
-            //if (cframe != null)
-            //{
-            //    if (kinWin.isRecording)
-            //    {
-            //        TimeSpan ts = cframe.RelativeTime;
-            //        Task.Run(() => cframe.Save(@"temp\image" + ts.TotalMilliseconds.ToString() + ".jpeg"));
-            //    }
-            //    cframe.Dispose();
-            //}
-
-
-
-            //using (ColorFrame cframe = e.FrameReference.AcquireFrame())
-            //{
-            //    if (cframe != null)
-            //    {
-            //        //Console.WriteLine(cframe.FrameDescription.Width);
-            //        //Console.WriteLine(cframe.FrameDescription.Height);
-            //        //Console.WriteLine(cframe.FrameDescription.BytesPerPixel);
-            //        //Console.WriteLine(cframe.FrameDescription.LengthInPixels);
-            //        //byte[] frameData = new byte[cframe.FrameDescription.LengthInPixels*4];
-            //        //cframe.CopyConvertedFrameDataToArray(frameData, ColorImageFormat.Bgra);
-
-
-            //        //imageCounter++;
-
-
-
-            //        if (kinWin.isRecording)
-            //        {
-            //            ColorFrame cf = cframe;
-            //            Task.Factory.StartNew( () => cf.Save(@"temp\image" + cf.RelativeTime.ToString() + ".jpeg"));
-            //            cf.Dispose();
-            //            //WriteableBitmap b = kinWin.ColorBitmap;
-            //            //// add the frame to the video list
-            //            ////record.ContinueWith(x => video.Add(kinWin.ColorBitmap));
-            //            //Record = Task.Factory.StartNew(() => Video.Add(b));
-            //            ////Record = Task.Factory.StartNew(() => Video.Add(kinWin.ColorBitmap));
-
-            //            //if (vfw.IsOpen)
-            //            //{
-            //            //    vfw.WriteVideoFrame(BitmapSourceToBitmap(kinWin.ColorBitmap));
-            //            //}
-            //            //Bitmap btm = BitmapSourceToBitmap(kinWin.ColorBitmap);
-
-            //        }
-            //    }
-            //}
-        }
-
-        private Bitmap BitmapSourceToBitmap(BitmapSource srs)
-        {
-            int width = srs.PixelWidth;
-            int height = srs.PixelHeight;
-            int stride = width * ((srs.Format.BitsPerPixel + 7) / 8);
-            IntPtr ptr = IntPtr.Zero;
-            try
-            {
-                ptr = Marshal.AllocHGlobal(height * stride);
-                srs.CopyPixels(new Int32Rect(0, 0, width, height), ptr, height * stride, stride);
-                using (var btm = new Bitmap(width, height, stride, System.Drawing.Imaging.PixelFormat.Format32bppArgb, ptr))
-                {
-                    // Clone the bitmap so that we can dispose it and
-                    // release the unmanaged memory at ptr
-                    return new Bitmap(btm);
-                }
-            }
-            finally
-            {
-                if (ptr != IntPtr.Zero)
-                    Marshal.FreeHGlobal(ptr);
-
-            }
-        }
-
-
-        private void WriteVideo(string filename)
-        {
-            int width = (int)Video[0].Width;
-            int height = (int)Video[0].Height;
-            // create instance of video writer
-            VideoFileWriter writer = new VideoFileWriter();
-            // create new video file
-            writer.Open(filename, width, height, 30, VideoCodec.MPEG4);
-            Stopwatch s = new Stopwatch();
-            for (int i = 0; i < Video.Count; i++)
-            {
-                s.Restart();
-                Bitmap btm = new Bitmap(BitmapSourceToBitmap((BitmapSource)Video[i]));
-                writer.WriteVideoFrame(btm);
-                s.Stop();
-                Console.WriteLine(s.Elapsed.TotalMilliseconds);
-
-            }
-            writer.Close();
-        }
-
-
-
-        //private void Timer_Elapsed(object sender, ElapsedEventArgs e)
-        //{
-        //    ShowSteps(BM.beatCounter % 8);
-        //}
-
+        /// <summary>
+        /// Play.
+        /// </summary>
         public void Play()
         {
             try
             {
-                Video.Clear();
                 plotSalsaSteps.Clear();
                 foreach (Feedback item in FeedbackArray)
                 {
@@ -284,6 +216,9 @@ namespace DancingTrainer
             }
         }
 
+        /// <summary>
+        /// Pause.
+        /// </summary>
         public void Pause()
         {
             isRunning = false;
@@ -298,6 +233,9 @@ namespace DancingTrainer
             }
         }
 
+        /// <summary>
+        /// Stop.
+        /// </summary>
         public void Stop()
         {
             isRunning = false;
@@ -337,6 +275,11 @@ namespace DancingTrainer
 
         }
 
+        /// <summary>
+        /// Event to close the window.
+        /// </summary>
+        /// <param name="sender">object</param>
+        /// <param name="e">CancelEventArgs</param>
         private void SalsaWindow_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
             mainWin.img_Play.IsEnabled = false;
@@ -345,15 +288,17 @@ namespace DancingTrainer
             mainWin.button_Load.IsEnabled = true;
 
             //disable Speech Control
-            //try
-            //{
-            //    mainWin.DisableSpeechControl();
-            //}
-            //catch (Exception) { }
+            try
+            {
+                mainWin.DisableSpeechControl();
+            }
+            catch (Exception) { }
             Dispose();
         }
 
-
+        /// <summary>
+        /// Saves the feedback schedule.
+        /// </summary>
         public void SaveFeedbackSchedule()
         {
             SaveFileDialog sfdg = new SaveFileDialog
@@ -372,9 +317,9 @@ namespace DancingTrainer
             if (sfdg.FileName != "")
             {
                 dynamic timeline = new JObject();
-                timeline.Date = SessionStart.Date.ToString();
+                timeline.Date = SessionStart.ToShortDateString();
                 timeline.TotalDuration = beatMan.totalDuration;
-                timeline.Song = mainWin.combobox_MusicList.SelectedItem.ToString();
+                timeline.Song = mainWin.combobox_MusicList.Text;
                 timeline.BPM = beatMan.BPM;
                 timeline.Name = "Test";
                 timeline.Feedback = new JArray() as dynamic;
@@ -440,8 +385,16 @@ namespace DancingTrainer
             }
         }
 
+        /// <summary>
+        /// Sets the images on the UI for the Salsa Steps
+        /// </summary>
+        /// <param name="salsa_pos">Int of the step</param>
         private void SetSalsaStepsWithBeat(int salsa_pos)
         {
+            if (!mi_ShowSalsaSteps.IsChecked)
+            {
+                return;
+            }
             switch (salsa_pos)
             {
                 default:
@@ -565,7 +518,10 @@ namespace DancingTrainer
             }
         }
 
-        // only one method ??? 
+        /// <summary>
+        /// Show salsa steps for normal mode
+        /// </summary>
+        /// <param name="salsa_pos">Int of the steps</param>
         public void ShowSteps(int salsa_pos)
         {
             if (mode != "normal")
@@ -575,6 +531,10 @@ namespace DancingTrainer
             SetSalsaStepsWithBeat(salsa_pos);
         }
 
+        /// <summary>
+        /// Show salsa steps for tutorial mode
+        /// </summary>
+        /// <param name="salsa_pos">int of the steps</param>
         public void ShowStepsTutorial(int salsa_pos)
         {
             if (mode == "normal")
@@ -584,22 +544,36 @@ namespace DancingTrainer
             SetSalsaStepsWithBeat(salsa_pos);
         }
 
+        /// <summary>
+        /// Start to capture the body
+        /// </summary>
         private void StartBodyCapturing()
         {
             kinWin.bodyFrameHandler.bodyFrameReader.IsPaused = false;
             kinWin.bodyFrameHandler.bodyFrameReader.FrameArrived += BodyFrameReader_FrameArrived;
         }
 
+        /// <summary>
+        /// Pauses to capture the body.
+        /// </summary>
         private void PauseBodyCapturing()
         {
             kinWin.bodyFrameHandler.bodyFrameReader.IsPaused = true;
         }
 
+        /// <summary>
+        /// Stops to capture the body.
+        /// </summary>
         private void StopBodyCapturing()
         {
             kinWin.bodyFrameHandler.bodyFrameReader.FrameArrived -= BodyFrameReader_FrameArrived;
         }
 
+        /// <summary>
+        /// Event to read the arrived body frame
+        /// </summary>
+        /// <param name="sender">object.</param>
+        /// <param name="e">BodyFrameArrivedEventAargs.</param>
         private void BodyFrameReader_FrameArrived(object sender, BodyFrameArrivedEventArgs e)
         {
             if (!isRunning) return;
@@ -734,46 +708,18 @@ namespace DancingTrainer
                         {
                             movebody.RaiseHand(beatMan.StopWatch.Elapsed.TotalMilliseconds - beatMan.timerStopwatchOffset);
                         }
-
-                        //Joint shoulderRight = Bodies[i].Joints[JointType.ShoulderRight];
-                        //Joint shoulderLeft = Bodies[i].Joints[JointType.ShoulderLeft];
-                        //Joint elbowLeft = Bodies[i].Joints[JointType.ElbowLeft];
-                        //Joint elbowRight = Bodies[i].Joints[JointType.ElbowRight];
-                        //Joint handLeft = Bodies[i].Joints[JointType.HandLeft];
-                        //Joint handRight = Bodies[i].Joints[JointType.HandRight];
-
-                        //double elbowAngleLeft = elbowLeft.Angle(handLeft, shoulderLeft);
-                        //double shoulderAngleLeft = shoulderLeft.Angle(elbowLeft, spineShoulder);
-                        //double elbowAngleRight = elbowRight.Angle(handRight, shoulderRight);
-                        //double shoulderAngleRight = shoulderRight.Angle(handRight, spineShoulder);
-
-                        //Console.WriteLine(elbowAngleLeft.ToString());
-                        //Console.WriteLine(shoulderAngleLeft.ToString());
-                        //Console.WriteLine(elbowAngleRight.ToString());
-                        //Console.WriteLine(shoulderAngleRight.ToString());
-                        //if ((elbowAngleLeft >= 135 && shoulderAngleLeft <= 100)||(elbowAngleRight >= 135 && shoulderAngleRight <= 100))
-                        //{
-                        //    MOVEBODY.RaiseHand(DateTime.Now.Subtract(SessionStart).TotalMilliseconds);
-                        //}
-                        //else
-                        //{
-                        //    MOVEBODY.LowerHand(DateTime.Now.Subtract(SessionStart).TotalMilliseconds);
-                        //}
-
                     }
                 }
             }
         }
 
+        /// <summary>
+        /// Detect upper body motion.
+        /// </summary>
+        /// <param name="body">Body</param>
+        /// <returns>Bool if upper body motion is detecteed</returns>
         private bool UpperBodyMotionCapturing(Body body)
         {
-            //Joint head = body.Joints[JointType.Head];
-            //Joint neck = body.Joints[JointType.Neck];
-            //Joint spineShoulder = body.Joints[JointType.SpineShoulder];
-            //Joint spineMid = body.Joints[JointType.SpineMid];
-            //Joint spineBase = body.Joints[JointType.SpineBase];
-            //Joint hipLeft = body.Joints[JointType.HipLeft];
-            //Joint hipRight = body.Joints[JointType.HipRight];
             Joint shoulderRight = body.Joints[JointType.ShoulderRight];
             Joint shoulderLeft = body.Joints[JointType.ShoulderLeft];
             Joint elbowLeft = body.Joints[JointType.ElbowLeft];
@@ -783,25 +729,8 @@ namespace DancingTrainer
             Joint handLeft = body.Joints[JointType.HandLeft];
             Joint handRight = body.Joints[JointType.HandRight];
 
-            // look only on sideways motion
-            //shoulderRight.Position.Y = 0;
-            //shoulderLeft.Position.Y = 0;
-            //elbowLeft.Position.Y = 0;
-            //elbowRight.Position.Y = 0;
-            //wristLeft.Position.Y = 0;
-            //wristRight.Position.Y = 0;
-            //handLeft.Position.Y = 0;
-            //handRight.Position.Y = 0;
-
             if (prevJointPositions.Count == 0)
             {
-                //prevJointPositions.Add(JointType.Head, head.Position);
-                //prevJointPositions.Add(JointType.Neck, neck.Position);
-                //prevJointPositions.Add(JointType.SpineShoulder, spineShoulder.Position);
-                //prevJointPositions.Add(JointType.SpineMid, spineMid.Position);
-                //prevJointPositions.Add(JointType.SpineBase, spineBase.Position);
-                //prevJointPositions.Add(JointType.HipLeft, hipLeft.Position);
-                //prevJointPositions.Add(JointType.HipRight, hipRight.Position);
                 prevJointPositions.Add(JointType.ShoulderLeft, shoulderLeft.Position);
                 prevJointPositions.Add(JointType.ShoulderRight, shoulderRight.Position);
                 prevJointPositions.Add(JointType.ElbowLeft, elbowLeft.Position);
@@ -812,20 +741,6 @@ namespace DancingTrainer
                 prevJointPositions.Add(JointType.HandRight, handRight.Position);
             }
 
-
-
-
-            //Console.WriteLine(RoundVector3D(spineMid.Position.ToVector3(), 1).ToString());
-            //Console.WriteLine(RoundVector3D(prevJointPositions[JointType.SpineMid].ToVector3(), 1).ToString());
-            //Console.WriteLine((RoundVector3D(spineMid.Position.ToVector3(), 1) - RoundVector3D(prevJointPositions[JointType.SpineMid].ToVector3(), 1)).ToString());
-
-            //double headMotionAngle = Angle3D(RoundVector3D(head.Position.ToVector3(), 1) - RoundVector3D(prevJointPositions[JointType.Head].ToVector3(), 1), forwardMovement);
-            //double neckMotionAngle = Angle3D(RoundVector3D(neck.Position.ToVector3(), 1) - RoundVector3D(prevJointPositions[JointType.Neck].ToVector3(), 1), forwardMovement);
-            //double spineShoulderMotionAngle = Angle3D(RoundVector3D(spineShoulder.Position.ToVector3(), 1) - RoundVector3D(prevJointPositions[JointType.SpineShoulder].ToVector3(), 1), forwardMovement);
-            //double spineMidMotionAngle = Angle3D(RoundVector3D(spineMid.Position.ToVector3(), 1) - RoundVector3D(prevJointPositions[JointType.SpineMid].ToVector3(), 1), forwardMovement);
-            //double spineBaseMotionAngle = Angle3D(RoundVector3D(spineShoulder.Position.ToVector3(), 1) - RoundVector3D(prevJointPositions[JointType.SpineShoulder].ToVector3(), 1), forwardMovement);
-            //double hipLeftMotionAngle = Angle3D(RoundVector3D(hipLeft.Position.ToVector3(), 1) - RoundVector3D(prevJointPositions[JointType.HipLeft].ToVector3(), 1), forwardMovement);
-            //double hipRightMotionAngle = Angle3D(RoundVector3D(hipRight.Position.ToVector3(), 1) - RoundVector3D(prevJointPositions[JointType.HipRight].ToVector3(), 1), forwardMovement);
             double shoulderLeftMotionAngle = Angle3D(RoundVector3D(shoulderLeft.Position.ToVector3(), 2) - RoundVector3D(prevJointPositions[JointType.ShoulderLeft].ToVector3(), 2), referenceMovement);
             double shoulderRightMotionAngle = Angle3D(RoundVector3D(shoulderRight.Position.ToVector3(), 2) - RoundVector3D(prevJointPositions[JointType.ShoulderRight].ToVector3(), 2), referenceMovement);
             double elbowLeftMotionAngle = Angle3D(RoundVector3D(elbowLeft.Position.ToVector3(), 2) - RoundVector3D(prevJointPositions[JointType.ElbowLeft].ToVector3(), 2), referenceMovement);
@@ -835,20 +750,10 @@ namespace DancingTrainer
             double handLeftMotionAngle = Angle3D(RoundVector3D(handLeft.Position.ToVector3(), 2) - RoundVector3D(prevJointPositions[JointType.HandLeft].ToVector3(), 2), referenceMovement);
             double handRightMotionAngle = Angle3D(RoundVector3D(handRight.Position.ToVector3(), 2) - RoundVector3D(prevJointPositions[JointType.HandRight].ToVector3(), 2), referenceMovement);
 
-            //Console.WriteLine((headMotionAngle, neckMotionAngle, spineShoulderMotionAngle, spineMidMotionAngle, spineBaseMotionAngle,
-            //    hipLeftMotionAngle, hipRightMotionAngle, shoulderLeftMotionAngle, shoulderRightMotionAngle, elbowLeftMotionAngle,
+
+            //Console.WriteLine((shoulderLeftMotionAngle, shoulderRightMotionAngle, elbowLeftMotionAngle,
             //    elbowRightMotionAngle, wristLeftMotionAngle, wristRightMotionAngle, handLeftMotionAngle, handRightMotionAngle));
 
-            Console.WriteLine((shoulderLeftMotionAngle, shoulderRightMotionAngle, elbowLeftMotionAngle,
-                elbowRightMotionAngle, wristLeftMotionAngle, wristRightMotionAngle, handLeftMotionAngle, handRightMotionAngle));
-
-            //motionAngles[JointType.Head] = headMotionAngle;
-            //motionAngles[JointType.Neck] = neckMotionAngle;
-            //motionAngles[JointType.SpineShoulder] = spineShoulderMotionAngle;
-            //motionAngles[JointType.SpineMid] = spineMidMotionAngle;
-            //motionAngles[JointType.SpineBase] = spineBaseMotionAngle;
-            //motionAngles[JointType.HipLeft] = hipLeftMotionAngle;
-            //motionAngles[JointType.HipRight] = hipRightMotionAngle;
             motionAngles[JointType.ShoulderLeft] = shoulderLeftMotionAngle;
             motionAngles[JointType.ShoulderRight] = shoulderRightMotionAngle;
             motionAngles[JointType.ElbowLeft] = elbowLeftMotionAngle;
@@ -857,7 +762,7 @@ namespace DancingTrainer
             motionAngles[JointType.WristRight] = wristRightMotionAngle;
             motionAngles[JointType.HandLeft] = handLeftMotionAngle;
             motionAngles[JointType.HandRight] = handRightMotionAngle;
-
+            
             double conf = 0;
             foreach (var item in motionAngles)
             {
@@ -884,26 +789,12 @@ namespace DancingTrainer
             progbar_MoveBody.Value = conf;
             if (conf >= 0.77)
             {
-                //label_MoveBody.Foreground = System.Windows.Media.Brushes.Green;
                 progbar_MoveBody.Foreground = System.Windows.Media.Brushes.Green;
-
             }
             else
             {
-                //label_MoveBody.Foreground = System.Windows.Media.Brushes.Red;
                 progbar_MoveBody.Foreground = System.Windows.Media.Brushes.Red;
             }
-
-
-
-
-            //Vector3D[] data = new Vector3D[]
-            //{
-            //    head.Position.ToVector3(),neck.Position.ToVector3(),spineShoulder.Position.ToVector3(),spineMid.Position.ToVector3(),
-            //    spineBase.Position.ToVector3(),hipLeft.Position.ToVector3(),hipRight.Position.ToVector3(),shoulderLeft.Position.ToVector3(),
-            //    shoulderRight.Position.ToVector3(),elbowLeft.Position.ToVector3(),elbowRight.Position.ToVector3(),wristLeft.Position.ToVector3(),
-            //    wristRight.Position.ToVector3(),handLeft.Position.ToVector3(),handRight.Position.ToVector3()
-            //};
 
             Vector3D[] data = new Vector3D[]
             {
@@ -915,13 +806,6 @@ namespace DancingTrainer
             stanceData.Add(string.Join("\t", data));
 
             // update position for the next frame
-            //prevJointPositions[JointType.Head] = head.Position;
-            //prevJointPositions[JointType.Neck] = neck.Position;
-            //prevJointPositions[JointType.SpineShoulder] = spineShoulder.Position;
-            //prevJointPositions[JointType.SpineMid] = spineMid.Position;
-            //prevJointPositions[JointType.SpineBase] = spineBase.Position;
-            //prevJointPositions[JointType.HipLeft] = hipLeft.Position;
-            //prevJointPositions[JointType.HipRight] = hipRight.Position;
             prevJointPositions[JointType.ShoulderLeft] = shoulderLeft.Position;
             prevJointPositions[JointType.ShoulderRight] = shoulderRight.Position;
             prevJointPositions[JointType.ElbowLeft] = elbowLeft.Position;
@@ -935,12 +819,23 @@ namespace DancingTrainer
             return (conf > 0.77);
         }
 
+        /// <summary>
+        /// Rounds the components of a 3D vector.
+        /// </summary>
+        /// <param name="u">Vector3D</param>
+        /// <param name="digits">int to be rounded on</param>
+        /// <returns>rounded Vector3d</returns>
         private Vector3D RoundVector3D(Vector3D u, int digits)
         {
             return new Vector3D(Math.Round(u.X, digits), Math.Round(u.X, digits), Math.Round(u.Z, digits));
         }
 
-
+        /// <summary>
+        /// Computes the angle of two vectors.
+        /// </summary>
+        /// <param name="v1">Vector3D</param>
+        /// <param name="v2">Vector3D</param>
+        /// <returns>double</returns>
         private double Angle3D(Vector3D v1, Vector3D v2)
         {
             double dot = v1.X * v2.X + v1.Y * v2.Y + v1.Z * v2.Z;
@@ -951,7 +846,7 @@ namespace DancingTrainer
                 return 0.0;
             }
             angle = angle * 360.0 / 2.0 / Math.PI;
-            // return always the really smaller one
+            // return always the smaller one
             if (angle > 90.0)
             {
                 angle = 180 - angle;
@@ -959,6 +854,9 @@ namespace DancingTrainer
             return angle;
         }
 
+        /// <summary>
+        /// Stops face capturing.
+        /// </summary>
         private void StopFaceCapturing()
         {
             for (int i = 0; i < kinWin.faceFrameHandler.bodyCount; i++)
@@ -973,6 +871,10 @@ namespace DancingTrainer
                 }
             }
         }
+
+        /// <summary>
+        /// Sarts face capturing.
+        /// </summary>
         private void StartFaceCapturing()
         {
             for (int i = 0; i < kinWin.faceFrameHandler.bodyCount; i++)
@@ -982,12 +884,15 @@ namespace DancingTrainer
                     // wire handler for face frame arrival
                     kinWin.faceFrameHandler.faceFrameReaders[i].IsPaused = false;
                     kinWin.faceFrameHandler.faceFrameReaders[i].FrameArrived += Reader_FaceFrameArrived;
-                    //break;
                 }
             }
         }
 
-        // the teacher who choses the feedback
+        /// <summary>
+        /// Event to choose the feedback for display.
+        /// </summary>
+        /// <param name="sender">object</param>
+        /// <param name="e">ElapsedEventArgs</param>
         private void FeedbackTimer_Elapsed(object sender, ElapsedEventArgs e)
         {
             // reset
@@ -1006,7 +911,6 @@ namespace DancingTrainer
                         // can not access object because it is used by another thread
                         SetImageSource(FeedbackArray[currentFeedbackCounter].Source);
                         SetLabelContent(FeedbackArray[currentFeedbackCounter].Instruction);
-                        //feedbackArray[currentFeedbackCounter].StartTalking(DateTime.Now.Subtract(SessionStart).TotalMilliseconds);
                         FeedbackArray[currentFeedbackCounter].StartTalking(beatMan.StopWatch.Elapsed.TotalMilliseconds);
                         FeedbackArray[currentFeedbackCounter].IsDisplayed = true;
                     }
@@ -1028,11 +932,20 @@ namespace DancingTrainer
 
         }
 
+        /// <summary>
+        /// Set session start
+        /// </summary>
+        /// <param name="dt">DateTime</param>
         public void SetSessionStart(DateTime dt)
         {
             this.SessionStart = dt;
         }
 
+        /// <summary>
+        /// Event to read the arrived face frame.
+        /// </summary>
+        /// <param name="sender">object</param>
+        /// <param name="e">FaceFrameArrivedEventArgs</param>
         public void Reader_FaceFrameArrived(object sender, FaceFrameArrivedEventArgs e)
         {
             using (FaceFrame ff = e.FrameReference.AcquireFrame())
@@ -1077,13 +990,11 @@ namespace DancingTrainer
                         if (faceFrame.FaceFrameResult.FaceProperties[FaceProperty.Happy] == DetectionResult.No)
                         {
                             // start feedback
-                            //SMILE.RaiseHand(DateTime.Now.Subtract(SessionStart).TotalMilliseconds);
                             smile.RaiseHand(beatMan.StopWatch.Elapsed.TotalMilliseconds - beatMan.timerStopwatchOffset);
                             label_Smile.Foreground = System.Windows.Media.Brushes.Red;
                         }
                         else
                         {
-                            //SMILE.LowerHand(DateTime.Now.Subtract(SessionStart).TotalMilliseconds);
                             smile.LowerHand(beatMan.StopWatch.Elapsed.TotalMilliseconds - beatMan.timerStopwatchOffset);
                             label_Smile.Foreground = System.Windows.Media.Brushes.Green;
                         }
@@ -1097,7 +1008,10 @@ namespace DancingTrainer
             }
         }
 
-        delegate void SetImageSourceDelegate(BitmapImage b);
+        /// <summary>
+        /// Set Image Source.
+        /// </summary>
+        /// <param name="b">BitmapImage</param>
         private void SetImageSource(BitmapImage b)
         {
             SetImageSourceDelegate simd = delegate (BitmapImage bim)
@@ -1107,7 +1021,10 @@ namespace DancingTrainer
             img_Feedback_Icon.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Normal, simd, b);
         }
 
-        delegate void SetLabelContentDelegate(string s);
+        /// <summary>
+        /// Set label content on UI.
+        /// </summary>
+        /// <param name="s">string</param>
         private void SetLabelContent(string s)
         {
             SetLabelContentDelegate slcd = delegate (string instr)
@@ -1117,6 +1034,11 @@ namespace DancingTrainer
             label_Feedback_Icon.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Normal, slcd, s);
         }
 
+        /// <summary>
+        /// Event to change to normal mode.
+        /// </summary>
+        /// <param name="sender">object</param>
+        /// <param name="e">RoutedEventArgs</param>
         private void MenuItem_OnNormal_Click(object sender, RoutedEventArgs e)
         {
             mi_Normal.IsEnabled = false;
@@ -1137,6 +1059,11 @@ namespace DancingTrainer
             label_Smile.Visibility = Visibility.Hidden;
         }
 
+        /// <summary>
+        /// Event to change to tutorial mode.
+        /// </summary>
+        /// <param name="sender">object</param>
+        /// <param name="e">RoutedEventArgs</param>
         private void MenuItem_OnTutorial_Click(object sender, RoutedEventArgs e)
         {
             mi_Normal.IsEnabled = true;
@@ -1160,6 +1087,11 @@ namespace DancingTrainer
             label_Smile.Visibility = Visibility.Hidden;
         }
 
+        /// <summary>
+        /// Event to change to experimental mode.
+        /// </summary>
+        /// <param name="sender">object</param>
+        /// <param name="e">RoutedEventArgs</param>
         private void MenuItem_OnExperimental_Click(object sender, RoutedEventArgs e)
         {
             mi_Normal.IsEnabled = true;
@@ -1180,11 +1112,21 @@ namespace DancingTrainer
             label_Smile.Visibility = Visibility.Visible;
         }
 
+        /// <summary>
+        /// Event to save performance.
+        /// </summary>
+        /// <param name="sender">object</param>
+        /// <param name="e">RoutedEventArgs</param>
         private void MenuItem_OnSave_Click(object sender, RoutedEventArgs e)
         {
             SaveFeedbackSchedule();
         }
 
+        /// <summary>
+        /// Event to enable or disable audio beat support.
+        /// </summary>
+        /// <param name="sender">object</param>
+        /// <param name="e">RoutedEventArgs</param>
         private void MenuItem_AudioBeatSupport_Click(object sender, RoutedEventArgs e)
         {
             if (mi_AudioBeatSupport.IsChecked)
@@ -1197,6 +1139,11 @@ namespace DancingTrainer
             }
         }
 
+        /// <summary>
+        /// Event to enable or disable beat count support.
+        /// </summary>
+        /// <param name="sender">object</param>
+        /// <param name="e">RoutedEventArgs</param>
         private void MenuItem_BeatCountSupport_Click(object sender, RoutedEventArgs e)
         {
             if (mi_BeatCountSupport.IsChecked)
@@ -1211,11 +1158,44 @@ namespace DancingTrainer
             }
         }
 
+        /// <summary>
+        /// Event to enable or disable salsa steps images.
+        /// </summary>
+        /// <param name="sender">object</param>
+        /// <param name="e">RoutedEventArgs</param>
         private void MenuItem_ShowSalsaSteps_Click(object sender, RoutedEventArgs e)
         {
-            return;
+            // TO DO
+            if (mi_ShowSalsaSteps.IsChecked)
+            {
+                // Show the steps          
+                try
+                {
+                    // if beat counter label is '-' than set it to default.
+                    SetSalsaStepsWithBeat(Int32.Parse(label_BeatCounter.ToString()));
+                }
+                catch (Exception)
+                {
+                    SetSalsaStepsWithBeat(8);
+                }             
+            }
+            else
+            {
+                // do not show the steps
+                img_Left_Backward.Source = null;
+                img_Left_Forward.Source = null;
+                img_Left_Neutral.Source = null;
+                img_Right_Backward.Source = null;
+                img_Right_Forward.Source = null;
+                img_Right_Neutral.Source = null;
+            }
         }
 
+        /// <summary>
+        /// Event to enable or disable side steps.
+        /// </summary>
+        /// <param name="sender">object</param>
+        /// <param name="e">RoutedEventArgs</param>
         private void MenuItem_Side_Click(object sender, RoutedEventArgs e)
         {
             mi_Side.IsEnabled = false;
@@ -1223,6 +1203,11 @@ namespace DancingTrainer
             referenceMovement = new Vector3D(-1.0, 0.0, 0.0);
         }
 
+        /// <summary>
+        /// Event to enable or disable forth and back steps.
+        /// </summary>
+        /// <param name="sender">object</param>
+        /// <param name="e">RoutedEventArgs</param>
         private void MenuItem_Straight_Click(object sender, RoutedEventArgs e)
         {
             mi_Side.IsEnabled = true;
@@ -1230,6 +1215,12 @@ namespace DancingTrainer
             referenceMovement = new Vector3D(0.0, 0.0, -1.0);
         }
 
+
+        /// <summary>
+        /// Event to open and visualize performance.
+        /// </summary>
+        /// <param name="sender">object</param>
+        /// <param name="e">RoutedEventArgs</param>
         private void MenuItem_Open_Click(object sender, RoutedEventArgs e)
         {
             OpenFileDialog ofdg = new OpenFileDialog
@@ -1242,7 +1233,6 @@ namespace DancingTrainer
                 CheckPathExists = true,
                 RestoreDirectory = true,
             };
-            //ofdg.ShowDialog();
             if (ofdg.ShowDialog() == System.Windows.Forms.DialogResult.OK)
             {
                 SalsaDashboard timeline = new SalsaDashboard(ofdg.FileName);
@@ -1250,23 +1240,9 @@ namespace DancingTrainer
             }
         }
 
-        private void SaveImage(BitmapSource image)
-        {
-
-            System.IO.FileStream stream = new System.IO.FileStream(@"temp\image" + imageCounter.ToString() + ".jpg", System.IO.FileMode.Create);
-            JpegBitmapEncoder encoder = new JpegBitmapEncoder
-            {
-                FlipHorizontal = true,
-                FlipVertical = false,
-                QualityLevel = 30
-            };
-            encoder.Frames.Add(BitmapFrame.Create(image));
-            encoder.Save(stream);
-            stream.Close();
-
-            imageCounter++;
-        }
-
+        /// <summary>
+        /// Disposes object.s
+        /// </summary>
         private void Dispose()
         {
             try

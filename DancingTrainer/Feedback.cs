@@ -8,17 +8,49 @@ namespace DancingTrainer
 {
     public class Feedback : IFeedback
     {
+        /// <summary>
+        /// Feedback icon.
+        /// </summary>
         public BitmapImage Source { get; set; }
+
+        /// <summary>
+        /// Feedback instruction.
+        /// </summary>
         public string Instruction { get; set; }
+
+        /// <summary>
+        /// Shows if the feedback is active.
+        /// </summary>
         public bool IsActive { get; set; } = false;
+
+        /// <summary>
+        /// Shows if the feedback is displayed.
+        /// </summary>
         public bool IsDisplayed { get; set; } = false;
+
+        /// <summary>
+        /// Shows if the feedback is blocked
+        /// </summary>
         public bool IsBlocked { get; set; }
+
+        /// <summary>
+        /// Timer that blocks and releases feedback.
+        /// </summary>
         public Timer blockAndRelease;
 
-        // one entry represents feedback_start, displayed_start, displayed_end, feedback_end in milliseconds
-        // -1 stands for undefined
+        // 
+        /// <summary>
+        /// List that schedules the feedback.
+        /// Entries represent feedback_start, displayed_start, displayed_end, feedback_end in milliseconds.
+        // If an entry is undefined the value is -1.
+        /// </summary>
         public List<(double, double, double)> Schedule { get; set; } = new List<(double, double, double)>();
 
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        /// <param name="s">Source for the icon.</param>
+        /// <param name="i">String for the instruction.</param>
         public Feedback(BitmapImage s, string i)
         {
             this.Source = s;
@@ -28,6 +60,11 @@ namespace DancingTrainer
             blockAndRelease.AutoReset = false;
         }
 
+        /// <summary>
+        /// Shows the last element of the feedback schedule.
+        /// </summary>
+        /// <param name="l">List of the feedback schedule.</param>
+        /// <returns>Tuple with three entries.</returns>
         private (double, double, double) PopLastListElement(List<(double, double, double)> l)
         {
             try
@@ -43,6 +80,10 @@ namespace DancingTrainer
             
         }
 
+        /// <summary>
+        /// Sets the starting time of the recognition.
+        /// </summary>
+        /// <param name="feedback_start">Double</param>
         public void RaiseHand(double feedback_start)
         {
             if (IsBlocked)
@@ -63,6 +104,10 @@ namespace DancingTrainer
             }
         }
 
+        /// <summary>
+        /// Sets the ending time of the recognition.
+        /// </summary>
+        /// <param name="feedback_end">Double</param>
         public void LowerHand(double feedback_end)
         {
             // to be sure that nothing happens if its blocked
@@ -81,22 +126,24 @@ namespace DancingTrainer
                 blockAndRelease.Start();
                 //Console.WriteLine(this.instruction + " is recognized and was active before: " + this.is_active);
             }
-            //else
-            //{
-            //    IsDisplayed = false;
-            //    IsActive = false;
-            //    //Console.WriteLine(this.instruction + " is recognized and was not active before: " + this.is_active);
-            //}
         }
 
+        /// <summary>
+        /// Event to release the blocked feedback
+        /// </summary>
+        /// <param name="sender">Object</param>
+        /// <param name="e">ElapsedEventArgs</param>
         private void BlockAndRelease_Elapsed(object sender, ElapsedEventArgs e)
         {
             IsBlocked = false;
         }
 
+        /// <summary>
+        /// Starts the starting time of the display.
+        /// </summary>
+        /// <param name="display_start"></param>
         public void StartTalking(double display_start)
         {
-            // to be sure
             if (IsBlocked)
             {
                 return;
@@ -113,6 +160,9 @@ namespace DancingTrainer
             }
         }
 
+        /// <summary>
+        /// Clears the schedule.
+        /// </summary>
         public void ClearSchedule()
         {
             Schedule.Clear();

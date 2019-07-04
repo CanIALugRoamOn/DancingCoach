@@ -3,33 +3,31 @@ using OxyPlot;
 using OxyPlot.Axes;
 using OxyPlot.Series;
 using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
-using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 
 namespace DancingTrainer
 {
-    /// <summary>
-    /// Interaction logic for Chart.xaml
-    /// </summary>
     public partial class SalsaDashboard : Window, INotifyPropertyChanged
     {
+        /// <summary>
+        /// Model of the plot.
+        /// </summary>
         private PlotModel model;
 
+        /// <summary>
+        /// Event to change properties.
+        /// </summary>
         public event PropertyChangedEventHandler PropertyChanged;
 
+        /// <summary>
+        /// Model of the plot.
+        /// </summary>
         public PlotModel Model
         {
             get
@@ -47,6 +45,12 @@ namespace DancingTrainer
                 }
             }
         }
+
+
+        /// <summary>
+        /// Constructor.
+        /// </summary>
+        /// <param name="json_path">string</param>
         public SalsaDashboard(string json_path)
         {
             InitializeComponent();
@@ -56,11 +60,20 @@ namespace DancingTrainer
             {
                 AddFeedback(item["Instruction"].ToString(), (double)item["Feedback Start"], (double)item["Display Start"], (double)item["Feedback End"], (double)jobj["TotalDuration"]);
             }
-            this.Title += " " + jobj["Name"] + " " + jobj["Date"] + " Duration: " + jobj["TotalDuration"] + " ms";
+            int dur = (int)jobj["TotalDuration"]/1000;
+            this.Title += " " + jobj["Name"] + " " + jobj["Date"] + " Duration: " + dur.ToString() + " sec";
 
             PlotModel(jobj);
         }
 
+        /// <summary>
+        /// Adds feedback to the UI.
+        /// </summary>
+        /// <param name="feedbackName">string</param>
+        /// <param name="recognition_start">double</param>
+        /// <param name="displayed_start">double</param>
+        /// <param name="recognition_end">double</param>
+        /// <param name="total_duration">double</param>
         private void AddFeedback(string feedbackName, double recognition_start, double displayed_start, double recognition_end, double total_duration)
         {
             switch (feedbackName)
@@ -80,6 +93,14 @@ namespace DancingTrainer
             }
         }
 
+        /// <summary>
+        /// Adds a rectangle to the UI.
+        /// </summary>
+        /// <param name="timeline">Grid</param>
+        /// <param name="rec_start">double</param>
+        /// <param name="dis_start">double</param>
+        /// <param name="rec_end">double</param>
+        /// <param name="total_duration">double</param>
         private void AddRectangleToTimeline(Grid timeline, double rec_start, double dis_start, double rec_end, double total_duration)
         {
             rec_start = rec_start / 1000;
@@ -169,7 +190,10 @@ namespace DancingTrainer
             }
         }
 
-
+        /// <summary>
+        /// Create the plot model.
+        /// </summary>
+        /// <param name="jobj">JObject</param>
         private void PlotModel(JObject jobj)
         {
             var tmp = new PlotModel
@@ -186,7 +210,7 @@ namespace DancingTrainer
                 ls.Points.Add(new DataPoint((double)point["ms"], (double)point["beat"]));
             }
             tmp.Series.Add(ls);
-
+            tmp.Axes.Add(new LinearAxis { Position = AxisPosition.Left, Title = "Salsa Steps", Minimum = 1, Maximum = 8 });
             tmp.Axes.Add(new LinearAxis { Position = AxisPosition.Bottom, Title = "Milliseconds" });
             
             var ls2 = new LineSeries() { Title = jobj["BPM"].ToString() + " Beats Per Minute" };
@@ -208,6 +232,10 @@ namespace DancingTrainer
             // plot_SalsaSteps.Model = model;
         }
 
+        /// <summary>
+        /// Event to change property.
+        /// </summary>
+        /// <param name="propertyName">[CallerMemberName] string</param>
         private void NotifyPropertyChanged([CallerMemberName] String propertyName = "")
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));

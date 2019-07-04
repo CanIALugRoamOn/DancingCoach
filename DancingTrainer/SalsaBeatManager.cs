@@ -1,48 +1,95 @@
 ﻿using System;
 using System.Diagnostics;
-using System.Threading.Tasks;
 using System.Timers;
-using System.Windows.Threading;
 
 namespace DancingTrainer
 {
     public class SalsaBeatManager : IBeatManager
     {
-        // beats per minute
+        /// <summary>
+        /// Beats per minute.
+        /// </summary>
         public int BPM;
 
-        // length of the track in seconds
+        /// <summary>
+        /// Length of the song in seconds.
+        /// </summary>
         public int length;
 
-        // milliseconds per beat
+        /// <summary>
+        /// Milliseconds per beat.
+        /// </summary>
         public float MSPB { get; set; }
 
-        // total number of beats
+        /// <summary>
+        /// Total number of beats.
+        /// </summary>
         readonly int totalBeats;
 
+        /// <summary>
+        /// Beat counter.
+        /// </summary>
         public int BeatCounter { get; set; } = 0;
 
-        SalsaWindow SW;
-        MainWindow MW;
-        public Timer BeatTimer { get; private set; }
-        public Timer ToTheBeatTimer { get; private set; }
+        /// <summary>
+        /// Reference to the SalsaWindow.
+        /// </summary>
+        SalsaWindow salWin;
 
-        // total milliseconds past
+        /// <summary>
+        /// Reference to the MainWindow.
+        /// </summary>
+        MainWindow mainWin;
+
+        /// <summary>
+        /// Timer for the beat.
+        /// </summary>
+        public Timer BeatTimer { get; private set; }
+
+        /// <summary>
+        /// Total milliseconds past
+        /// </summary>
         public double millisecondsPast = 0;
 
+        /// <summary>
+        /// Stopwatch to measure time.
+        /// </summary>
         public Stopwatch StopWatch { get; set; } = new Stopwatch();
+
+        /// <summary>
+        /// Offset between timer and stopwatch
+        /// </summary>
         public double timerStopwatchOffset;
+
+        /// <summary>
+        /// Total duration in ms
+        /// </summary>
         public double totalDuration;
+
+        /// <summary>
+        /// Bool if the application is running.
+        /// </summary>
         bool isRunning = false;
 
+        /// <summary>
+        /// Delegate to write the beat as string on the UI
+        /// </summary>
+        /// <param name="s">String[]</param>
+        delegate void WriteOnUi(string[] s);
+
+        /// <summary>
+        /// Constructor.
+        /// </summary>
+        /// <param name="mw">MainWindow</param>
+        /// <param name="bpm">Int for BeatsPerMinute</param>
+        /// <param name="length">Int for the length of the song.</param>
         public SalsaBeatManager(MainWindow mw, int bpm, int length)
         {
             BPM = bpm;
             this.length = length;
             MSPB = 60f / BPM * 1000;
             totalBeats = (int)(length * (BPM / 60f));
-            //Console.WriteLine(totalBeats);
-            MW = mw;
+            mainWin = mw;
 
             // init beat timer
             BeatTimer = new Timer
@@ -54,26 +101,33 @@ namespace DancingTrainer
             
         }
 
-        public void setSalsaWindow(SalsaWindow sw)
+        /// <summary>
+        /// Setter for the salsa window
+        /// </summary>
+        /// <param name="sw">SalsaWindow</param>
+        public void SetSalsaWindow(SalsaWindow sw)
         {
-            SW = sw;
+            salWin = sw;
         }
 
-        delegate void WriteOnUi(string[] s);
-
+        /// <summary>
+        /// Write to the beat counter label on the UI.
+        /// </summary>
+        /// <param name="content">string</param>
         private void WriteBeatCounterLabel(string content)
         {
             WriteOnUi woui = delegate (string[] contentArray)
             {
-                MW.label_BeatCounter.Content = contentArray[0];
-                SW.label_BeatCounter.Content = contentArray[0];
-                SW.ShowSteps((BeatCounter % 8) + 1);
+                mainWin.label_BeatCounter.Content = contentArray[0];
+                salWin.label_BeatCounter.Content = contentArray[0];
+                salWin.ShowSteps((BeatCounter % 8) + 1);
             };
-            //Console.WriteLine("Beat: " + beatCounter % 8);
-            //DispatcherOperation test = MW.label_BeatCounter.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Normal, woui, new string[] { content });
-            SW.label_BeatCounter.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Normal, woui, new string[] { content });
+            salWin.label_BeatCounter.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Normal, woui, new string[] { content });
         }
 
+        /// <summary>
+        /// Play.
+        /// </summary>
         public void Play()
         {
             if (isRunning)
@@ -84,7 +138,7 @@ namespace DancingTrainer
             else
             {
                 //BeatCounter = 1;
-                if (SW.mode == "normal")
+                if (salWin.mode == "normal")
                 {
                     BeatCounter = 0;
                     WriteBeatCounterLabel((BeatCounter % 8 + 1).ToString());
@@ -107,10 +161,15 @@ namespace DancingTrainer
             }
         }
 
+        /// <summary>
+        /// Event to count the beat.
+        /// </summary>
+        /// <param name="sender">object</param>
+        /// <param name="e">ElapsedEventArgs</param>
         private void Timer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
         {
             BeatCounter++;
-            if (SW.mode == "normal")
+            if (salWin.mode == "normal")
             {
                 WriteBeatCounterLabel((BeatCounter%8+1).ToString());
             }           
@@ -121,6 +180,9 @@ namespace DancingTrainer
             }
         }
 
+        /// <summary>
+        /// Pause.
+        /// </summary>
         public void Pause()
         {
             // pause the counter
@@ -128,6 +190,9 @@ namespace DancingTrainer
             StopWatch.Stop();
         }
 
+        /// <summary>
+        /// Stop.
+        /// </summary>
         public void Stop()
         {
             BeatTimer.Stop();
@@ -137,23 +202,16 @@ namespace DancingTrainer
             BeatCounter = 7;
             millisecondsPast = 0;
             WriteBeatCounterLabel("-");
-            SW.ShowSteps(0);
+            salWin.ShowSteps(0);
             isRunning = false;
         }
 
-        private void InitToTheBeatTimer()
-        {
-            ToTheBeatTimer = new System.Timers.Timer();
-            // 100 ms interval is where humans perceive real time
-            // or can not distinguish a delay
-            ToTheBeatTimer.Interval = 100;
-            ToTheBeatTimer.AutoReset = false;
-        }
-
+        /// <summary>
+        /// Disposes objects.
+        /// </summary>
         public void Dispose()
         {
             BeatTimer.Dispose();
-            ToTheBeatTimer.Dispose();            
         }
     }
 }

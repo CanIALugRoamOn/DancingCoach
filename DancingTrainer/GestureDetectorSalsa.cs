@@ -12,31 +12,66 @@ namespace DancingTrainer
         /// <summary> Path to the gesture database that was trained with VGB </summary>
         private readonly string gestureDatabase = @"vgbDatabase\basicSalsaSteps.gbd";
 
-        /// <summary> Name of the gestures in the database that we want to track </summary>
-        //private readonly string forthAndBackProgressLeft = "ForthAndBackProgress_Left";
-
         /// <summary> Gesture frame source which should be tied to a body tracking ID </summary>
         private VisualGestureBuilderFrameSource vgbFrameSource = null;
 
         /// <summary> Gesture frame reader which will handle gesture events coming from the sensor </summary>
-        // added readonly ???
         private readonly VisualGestureBuilderFrameReader vgbFrameReader = null;
 
+        /// <summary>
+        /// Reference to the step of the user.
+        /// </summary>
         public int currentSalsaBeatCounter = 8;
+
+        /// <summary>
+        /// Total time passed in ms.
+        /// </summary>
         public double timePassed = 0;
-        public List<(double, int)> timePassedList = new List<(double, int)>();
-        public string currentSalsaState = "";
-        private List<string> salsaStates = new List<string>();
+
+        /// <summary>
+        /// Holds the values of the gestures.
+        /// </summary>
         public Dictionary<String, float> gestureValues;
-        public bool gestureToTheBeat;
+
+        /// <summary>
+        /// Reference to the SalsaWindow
+        /// </summary>
         SalsaWindow salWin;
+
+        /// <summary>
+        /// Reference to the SalsaBeatManager
+        /// </summary>
         SalsaBeatManager beatMan;
-        private bool condition = false;
+
+        /// <summary>
+        /// Bool if the gesture is to the beat or not.
+        /// </summary>
         public bool IsGestureToTheBeat { get; private set; } = false;
+
+        /// <summary>
+        /// If a step is recognized to long without changing it gets resetted to the most possible step the user performs
+        /// </summary>
         public Timer resetTimer;
+
+        /// <summary>
+        /// Bool to train basic forth and back steps.
+        /// </summary>
         private bool straightSteps;
+
+        /// <summary>
+        /// Bool to train basic side steps.
+        /// </summary>
         private bool sideSteps;
 
+        /// <summary>
+        /// Delegate to write the progress and confidence of the salsa step recognition.
+        /// </summary>
+        /// <param name="t">(string, float)</param>
+        delegate void WriteOnUi((string, float) t);
+
+        /// <summary>
+        /// TrackingId of the Body
+        /// </summary>
         public ulong TrackingId
         {
             get
@@ -72,6 +107,13 @@ namespace DancingTrainer
                 }
             }
         }
+
+        /// <summary>
+        /// Constructor.
+        /// </summary>
+        /// <param name="sw">SalsaWindow</param>
+        /// <param name="kinectSensor">KinectSensor</param>
+        /// <param name="bm">SalsaBeatManager</param>
         public GestureDetectorSalsa(SalsaWindow sw,  KinectSensor kinectSensor, SalsaBeatManager bm)
         {
             salWin = sw;
@@ -108,8 +150,6 @@ namespace DancingTrainer
                 vgbFrameSource.AddGestures(database.AvailableGestures);                
             }
 
-            //BM.InitToTheBeatTimer();
-            //BM.toTheBeat.Elapsed += ToTheBeat_Elapsed;
             resetTimer = new Timer() { Interval = beatMan.MSPB * 5, AutoReset=false };
             resetTimer.Elapsed += ResetTimer_Elapsed;
 
@@ -117,6 +157,11 @@ namespace DancingTrainer
             sideSteps = !salWin.mi_Side.IsEnabled;
         }
 
+        /// <summary>
+        /// Event to reset the recognition of the user's salsa steps
+        /// </summary>
+        /// <param name="sender">Object</param>
+        /// <param name="e">ElapsedEventArgs</param>
         private void ResetTimer_Elapsed(object sender, ElapsedEventArgs e)
         {
             Console.WriteLine("Heureka !!!");
@@ -185,71 +230,10 @@ namespace DancingTrainer
             }
         }
 
-        private void ToTheBeat_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
-        {
-            if (!condition)
-            {
-                return;
-            }
-            // check if the gesture happend to the beat
-            int index = timePassedList.Count - 1;
-            int currentBeat = beatMan.BeatCounter;
-            gestureToTheBeat = false;
-            while(timePassedList[index].Item1 <= currentBeat * beatMan.MSPB + 100 && timePassedList[index].Item1 >= currentBeat * beatMan.MSPB - 100)
-            {
-                if (timePassedList[index].Item2 == currentBeat % 8 + 1)
-                {
-                    // correct time and correct beat
-                    gestureToTheBeat = true;
-                    break;
-                }
-                else
-                {
-                    if (index > 0)
-                    {
-                        index--;
-                    }
-                    else
-                    {
-                        break;
-                    }
-                }
-            }
-        }
-
-        //delegate void WriteOnUi2(float f);
-        delegate void WriteOnUi((string, float) t);
-
-        //private void WriteSalsaProgress(float value)
-        //{
-        //    WriteOnUi2 woui = delegate (float content)
-        //    {
-        //        salWin.progbar_ForthAndBackProgress_Left.Value = content;
-        //        salWin.label_FAndBProgress_Left.Content = "FandBProgress: " + content.ToString();
-        //    };
-        //    salWin.label_BeatCounter.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Normal, woui, value);
-        //}
-
-        //private void WriteFootTapLeft(float value)
-        //{
-        //    WriteOnUi2 woui = delegate (float content)
-        //    {
-        //        salWin.progbar_FootTap_Left.Value = content;
-        //        salWin.label_FootTap_Left.Content = "FootTap_Left: " + content.ToString();
-        //    };
-        //    salWin.label_BeatCounter.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Normal, woui, value);
-        //}
-
-        //private void WriteFootTapRight(float value)
-        //{
-        //    WriteOnUi2 woui = delegate (float content)
-        //    {
-        //        salWin.progbar_FootTap_Right.Value = content;
-        //        salWin.label_FootTap_Right.Content = "FootTap_Right: " + content.ToString();
-        //    };
-        //    salWin.label_BeatCounter.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Normal, woui, value);
-        //}
-
+        /// <summary>
+        /// Writes the progress/confidence of a gesture to the UI.
+        /// </summary>
+        /// <param name="tuple">(string,float)</param>
         private void WriteGestureOnUi((string,float) tuple)
         {
             WriteOnUi woui = delegate ((string, float) content)
@@ -273,6 +257,11 @@ namespace DancingTrainer
             salWin.label_BeatCounter.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Normal, woui, tuple);
         }
 
+        /// <summary>
+        /// Event to read the gesture frame and detect gestures.
+        /// </summary>
+        /// <param name="sender">Object</param>
+        /// <param name="e">VisualGesturebuilderFrameArrivedEventArgs</param>
         private void Reader_GestureFrameArrived(object sender, VisualGestureBuilderFrameArrivedEventArgs e)
         {
             int temp = currentSalsaBeatCounter;
@@ -382,18 +371,11 @@ namespace DancingTrainer
                     salWin.gestureValuesList.Add(string.Join("\t", data));
                 }                
             }
-            //if (timePassedList.Count <= 0)
-            //{
-            //    timePassedList.Add(((BM.stopWatch.Elapsed.TotalMilliseconds - BM.timerStopwatchOffset), currentSalsaBeatCounter));
-            //}
-            //if (temp != currentSalsaBeatCounter)
-            //{
-            //    timePassedList.Add(((BM.stopWatch.Elapsed.TotalMilliseconds - BM.timerStopwatchOffset), currentSalsaBeatCounter));
-            //    condition = true;
-            //}
-            //timePassed = timePassed + BM.stopWatch.Elapsed.TotalMilliseconds;
         }
 
+        /// <summary>
+        /// Detects side steps for salsa
+        /// </summary>
         private void DetectSideSteps()
         {
             if (gestureValues["SideStepProgress_Left"] >= 0.95)
@@ -401,7 +383,6 @@ namespace DancingTrainer
                 if (gestureValues["SideFootTapping_Right"] >= 0.15 && currentSalsaBeatCounter == 1)
                 {
                     currentSalsaBeatCounter = 2;
-                    currentSalsaState = "right tap";
                 }
                 if (currentSalsaBeatCounter == 8)
                 {
@@ -413,7 +394,6 @@ namespace DancingTrainer
                 if (gestureValues["SideFootTapping_Left"] >= 0.7 && currentSalsaBeatCounter == 5)
                 {
                     currentSalsaBeatCounter = 6;
-                    currentSalsaState = "left tap";
                 }
                 if (currentSalsaBeatCounter == 4)
                 {
@@ -441,6 +421,9 @@ namespace DancingTrainer
             }
         }
 
+        /// <summary>
+        /// detects forth and back steps for salsa
+        /// </summary>
         private void DetectForthAndBackSteps()
         {
             if (gestureValues["ForthAndBackProgress_Left"] >= 0.95)
@@ -448,7 +431,6 @@ namespace DancingTrainer
                 if (gestureValues["FootTapping_Right"] >= 0.6 && currentSalsaBeatCounter == 1)
                 {
                     currentSalsaBeatCounter = 2;
-                    currentSalsaState = "right tap";
                 }
                 if (currentSalsaBeatCounter == 8)
                 {
@@ -460,7 +442,6 @@ namespace DancingTrainer
                 if (gestureValues["FootTapping_Left"] >= 0.03 && currentSalsaBeatCounter == 5)
                 {
                     currentSalsaBeatCounter = 6;
-                    currentSalsaState = "left tap";
                 }
                 if (currentSalsaBeatCounter == 4)
                 {
@@ -489,12 +470,19 @@ namespace DancingTrainer
             }
         }
 
+        /// <summary>
+        /// Disposes the frame reader and source of the visual gesutre builder
+        /// </summary>
         public void Dispose()
         {
             vgbFrameReader.Dispose();
             vgbFrameSource.Dispose();
         }
 
+        /// <summary>
+        /// Resets a timer
+        /// </summary>
+        /// <param name="t">Timer</param>
         public void ResetTimer(Timer t)
         {
             if (t.Enabled)

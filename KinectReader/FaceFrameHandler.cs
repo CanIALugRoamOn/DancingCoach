@@ -21,11 +21,6 @@
 
 using Microsoft.Kinect;
 using Microsoft.Kinect.Face;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Media;
 
 namespace KinectReader
@@ -35,8 +30,6 @@ namespace KinectReader
 
         private KinectSensor kinectSensor;
        
-
-
         /// <summary>
         /// Drawing group for body rendering output
         /// </summary>
