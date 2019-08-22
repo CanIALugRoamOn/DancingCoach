@@ -1,4 +1,4 @@
-# DancingTrainer
+# DancingCoach
 
 The Kinect v2 is used to capture the user and the data is used to give feedback e.g. the recogntion of basic dance steps.
 Therefore, the [Kinect SDK](https://www.microsoft.com/en-us/download/details.aspx?id=44561) is needed.
